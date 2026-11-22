@@ -209,7 +209,7 @@ palco.appendChild(renderer.domElement);
 const cena = new THREE.Scene();
 cena.fog = new THREE.Fog('#3b2d6e', 18, 95);
 const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 900);
-camera.position.set(0, 3.6, 11);
+camera.position.set(0, 6.5, 10.5);
 
 const controles = new OrbitControls(camera, renderer.domElement);
 controles.enableDamping = true;
@@ -1105,7 +1105,7 @@ function posicionar() {
     );
   const adorm = lista.filter((v) => v.r.status === 'adormecido');
   const n = despertos.length;
-  const R = n <= 1 ? 0 : Math.max(2.8, n * 0.95);
+  const R = n <= 1 ? 0 : Math.max(3.6, n * 1.25); // wide ring, so islands never overlap
   despertos.forEach((v, i) => {
     const a = (i / Math.max(n, 1)) * Math.PI * 2 + 0.4;
     v.alvo.set(Math.cos(a) * R, (i % 2 ? 0.55 : -0.15) + ((hash(v.r.sessao) % 20) - 10) / 40, Math.sin(a) * R);
@@ -1447,7 +1447,8 @@ addEventListener('keydown', (e) => {
 let focado = null,
   voo = null,
   visaoGeral = null,
-  seguindo = false;
+  seguindo = false,
+  pontoFoco = null;
 const painel = document.getElementById('painel');
 const locaisEl = [];
 const suave = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
@@ -1473,9 +1474,11 @@ function criarLocais() {
   if (!focado?.cidade) return;
   for (const l of focado.cidade.locais) {
     if (l.resumo) continue;
-    const el = document.createElement('div');
+    const el = document.createElement('button');
     el.className = 'local';
     el.innerHTML = `<b>${esc(l.nome)}</b><small>${esc(l.detalhe)}</small>`;
+    const indice = focado.cidade.locais.indexOf(l);
+    el.onclick = () => verDePerto(indice);
     rotulos.appendChild(el);
     locaisEl.push({ el, l });
   }
@@ -1498,11 +1501,56 @@ function iniciarVoo(pos, alvo, depois) {
   controles.enabled = false;
 }
 function alvoAtual() {
-  return seguindo ? focado.gu.raiz.position.clone() : alvoDoReino(focado);
+  if (seguindo) return focado.gu.raiz.position.clone();
+  if (pontoFoco) return focado.k.corpo.localToWorld(pontoFoco.clone());
+  return alvoDoReino(focado);
+}
+// Fly close to one place in the city (a landmark, guild or the plaza).
+function verDePerto(indice) {
+  if (!focado?.cidade) return;
+  const l = focado.cidade.locais[indice];
+  if (!l) return;
+  seguindo = false;
+  pontoFoco = l.pos.clone();
+  pontoFoco.y = Math.max(0.1, l.pos.y * 0.45);
+  const alvo = alvoAtual();
+  const centro = focado.k.grupo.position.clone();
+  const fora = alvo.clone().sub(centro);
+  fora.y = 0;
+  if (fora.lengthSq() < 1e-4) fora.set(1, 0, 0);
+  fora.normalize();
+  const pos = alvo
+    .clone()
+    .add(fora.multiplyScalar(0.75 * focado.s))
+    .add(new THREE.Vector3(0, 0.45 * focado.s, 0));
+  controles.minDistance = 0.25;
+  iniciarVoo(pos, alvo, criarLocais);
+  renderPainel();
+}
+function verCidadeInteira() {
+  if (!focado) return;
+  pontoFoco = null;
+  seguindo = false;
+  const alvo = alvoDoReino(focado);
+  const dir = camera.position.clone().sub(alvo);
+  dir.y = 0;
+  if (dir.lengthSq() < 1e-4) dir.set(0, 0, 1);
+  dir.normalize();
+  controles.minDistance = 0.9;
+  iniciarVoo(
+    alvo
+      .clone()
+      .add(dir.multiplyScalar(2.3 * focado.s))
+      .add(new THREE.Vector3(0, 2.6 * focado.s, 0)),
+    alvo,
+    criarLocais,
+  );
+  renderPainel();
 }
 function seguirGuardiao(sim) {
   if (!focado) return;
   seguindo = sim;
+  pontoFoco = null;
   const alvo = alvoAtual();
   const dir = camera.position.clone().sub(controles.target);
   dir.y = 0;
@@ -1514,8 +1562,8 @@ function seguirGuardiao(sim) {
         .add(new THREE.Vector3(0, 0.55 * focado.s, 0))
     : alvo
         .clone()
-        .add(dir.multiplyScalar(1.9 * focado.s))
-        .add(new THREE.Vector3(0, 3.5 * focado.s, 0));
+        .add(dir.multiplyScalar(2.3 * focado.s))
+        .add(new THREE.Vector3(0, 2.6 * focado.s, 0));
   controles.minDistance = sim ? 0.3 : 0.9;
   if (sim) limparLocais();
   iniciarVoo(pos, alvo, sim ? null : criarLocais);
@@ -1532,6 +1580,7 @@ function ajustarEnquadre() {
 }
 function focar(v) {
   seguindo = false;
+  pontoFoco = null;
   if (!focado) visaoGeral = { pos: camera.position.clone(), alvo: controles.target.clone() };
   else mostrarCidade(focado, false);
   focado = v;
@@ -1544,8 +1593,8 @@ function focar(v) {
   dir.normalize();
   const pos = alvo
     .clone()
-    .add(dir.multiplyScalar(1.9 * v.s))
-    .add(new THREE.Vector3(0, 3.5 * v.s, 0));
+    .add(dir.multiplyScalar(2.3 * v.s))
+    .add(new THREE.Vector3(0, 2.6 * v.s, 0));
   iniciarVoo(pos, alvo, criarLocais);
   controles.minDistance = 0.9;
   controles.autoRotateSpeed = 0.7;
@@ -1558,6 +1607,7 @@ function focar(v) {
 function sairDoFoco() {
   if (!focado) return;
   seguindo = false;
+  pontoFoco = null;
   const v = focado;
   focado = null;
   painel.hidden = true;
@@ -1577,14 +1627,18 @@ function renderPainel() {
     b = BIOMAS[r.bioma],
     c = focado.cidade;
   const casas = c ? c.locais.find((l) => l.resumo)?.nome : `${nCasas(r)} casas`;
-  const item = (cor, titulo, texto) =>
-    `<li><i style="background:${cor}"></i><div><b>${titulo}</b><small>${texto}</small></div></li>`;
+  const indiceDe = (nome) => (c ? c.locais.findIndex((l) => l.nome === nome) : -1);
+  const item = (cor, titulo, texto, nomeLocal) => {
+    const i = nomeLocal ? indiceDe(nomeLocal) : -1;
+    return `<li><i style="background:${cor}"></i><div><b>${titulo}</b><small>${texto}</small>${i >= 0 ? `<button class="perto" data-local="${i}">Ver de perto</button>` : ''}</div></li>`;
+  };
   const oficios = (c?.oficios || [])
     .map((o) =>
       item(
         b?.acento || '#ffd98a',
         `${esc(o.nome)} · ${o.n} ${o.n === 1 ? 'uso' : 'usos'}`,
         `${esc(o.desc)}: ${esc(o.ferramentas.join(', '))}`,
+        o.nome,
       ),
     )
     .join('');
@@ -1597,15 +1651,18 @@ function renderPainel() {
     <span class="pilula s-${esc(r.status)}">${esc(STATUS_TXT[r.status] || r.status)} · ${esc(ha(r.desde))}</span>
     ${r.chamado ? `<p class="chamado">${esc(r.chamado)}</p>` : ''}
     ${r.pedido ? `<p class="pedido">“${esc(r.pedido)}”</p>` : ''}
-    <button class="seguir" id="seguir">${seguindo ? 'Voltar à cidade' : `Seguir ${artigoGuardiao(r.guardiao)}`}</button>
+    ${c?.descricao ? `<p class="lore">${esc(c.descricao.texto)}</p>` : ''}
+    <div class="acoes"><button class="seguir" id="seguir">${seguindo ? 'Voltar à cidade' : `Seguir ${artigoGuardiao(r.guardiao)}`}</button>${pontoFoco ? '<button class="seguir" id="inteira">Ver a cidade inteira</button>' : ''}</div>
     <h3>O que existe nesta cidade</h3>
     <ul class="mapa">
+      ${c?.descricao ? item(b?.acento || '#ffd98a', `Marco: ${esc(c.descricao.marco)}`, esc(c.descricao.marcoDesc), c.descricao.marco) : ''}
       ${item('#f3ecff', `Castelo · ${nTorres(r)} torres`, `ganha torres conforme as ações crescem (${esc(r.acoes)} ações até agora)`)}
       ${item('#e6cdb0', esc(casas || ''), 'uma casa para cada 3 ações da sessão')}
       ${item('#a6f5cf', `${nHabitantes(r.status)} habitantes nas ruas`, r.status === 'chamando' ? 'reunidos na praça, esperando por você' : 'mais gente na rua quando a sessão trabalha')}
-      ${item('#ffe6b0', 'Praça do pedido', r.pedido ? 'o pergaminho que flutua sobre a fonte guarda o último pedido' : 'ainda sem pedido')}
+      ${item('#ffe6b0', 'Praça do pedido', r.pedido ? 'o pergaminho que flutua sobre a fonte guarda o último pedido' : 'ainda sem pedido', 'Praça do pedido')}
       ${oficios || item('#c4bfd8', 'Nenhuma guilda ainda', 'cada tipo de ferramenta usada ergue um prédio novo')}
       ${(r.cronica || []).length ? item(b?.acento || '#c9b6ff', `${Math.min(6, r.cronica.length)} estandartes`, 'um para cada registro recente da crônica') : ''}
+      ${c?.descricao ? item('#9fe1ff', 'Clima', esc(c.descricao.clima)) : ''}
       ${item(GUARDIOES_COR[r.guardiao] || '#ffd98a', `Guardião: ${esc(r.guardiao)}`, `voa em volta do reino e pousa no farol quando a sessão precisa de você.${caudas}`)}
     </ul>
     ${
@@ -1620,6 +1677,11 @@ function renderPainel() {
     ${modoDemo ? '<p class="dica">Reino de demonstração</p>' : `<button class="obsidian" id="abrirObsidian">Abrir a nota no Obsidian</button>`}`;
   painel.querySelector('#voltar').onclick = sairDoFoco;
   painel.querySelector('#seguir').onclick = () => seguirGuardiao(!seguindo);
+  const inteira = painel.querySelector('#inteira');
+  if (inteira) inteira.onclick = verCidadeInteira;
+  painel.querySelectorAll('.perto').forEach((bt) => {
+    bt.onclick = () => verDePerto(Number(bt.dataset.local));
+  });
   const ob = painel.querySelector('#abrirObsidian');
   if (ob)
     ob.onclick = () => {
@@ -1763,7 +1825,7 @@ function quadro() {
 
   animarParticulas(dt);
   animarCamera(dt);
-  if (!Number.isFinite(camera.position.x + camera.position.y + camera.position.z)) camera.position.set(0, 3.6, 11);
+  if (!Number.isFinite(camera.position.x + camera.position.y + camera.position.z)) camera.position.set(0, 6.5, 10.5);
   controles.update();
 
   atualizarRotulos();
@@ -1923,7 +1985,7 @@ function limparTudo() {
     controles.minDistance = 3;
     controles.autoRotateSpeed = 0.35;
     controles.target.set(0, 0.4, 0);
-    camera.position.set(0, 3.6, 11);
+    camera.position.set(0, 6.5, 10.5);
     camera.clearViewOffset();
   }
   for (const v of reinos.values()) {
@@ -2015,6 +2077,8 @@ window.__reinos3d = {
   focar,
   sairDoFoco,
   seguirGuardiao,
+  verDePerto,
+  verCidadeInteira,
   get focado() {
     return focado;
   },

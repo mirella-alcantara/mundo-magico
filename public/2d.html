@@ -469,8 +469,35 @@
       let W = 0,
         H = 0,
         DPR = 1;
+      // Adaptive resolution: draw fewer pixels when frames get slow (the clouds are fill-heavy).
+      const DPR_MIN = Math.min(window.devicePixelRatio || 1, 1);
+      let dprAtual = 2;
+      const desempenho = { soma: 0, n: 0, bons: 0, teto: Infinity };
+      function ajustarResolucao(dt) {
+        desempenho.soma += dt;
+        desempenho.n += 1;
+        if (desempenho.soma < 1) return;
+        const mediaMs = (desempenho.soma / desempenho.n) * 1000;
+        desempenho.soma = desempenho.n = 0;
+        let novo = DPR;
+        if (mediaMs > 25) {
+          desempenho.teto = DPR;
+          desempenho.bons = 0;
+          novo = Math.max(DPR_MIN, DPR - 0.25);
+        } else if (mediaMs < 18 && ++desempenho.bons >= 5) {
+          desempenho.bons = 0;
+          if (DPR + 0.25 < desempenho.teto) novo = Math.min(window.devicePixelRatio || 1, 2, DPR + 0.25);
+        }
+        if (novo !== DPR) {
+          dprAtual = novo;
+          DPR = novo;
+          cv.width = W * DPR;
+          cv.height = H * DPR;
+          ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+        }
+      }
       function redimensionar() {
-        DPR = Math.min(window.devicePixelRatio || 1, 2);
+        DPR = Math.min(dprAtual, window.devicePixelRatio || 1, 2);
         W = innerWidth;
         H = innerHeight;
         cv.width = W * DPR;
@@ -1629,6 +1656,7 @@
         desenharVagalumes(c, t);
         for (const v of lista) desenharRotulo(v);
         if (foco) mostrarCartao(foco, mouse[0], mouse[1]);
+        ajustarResolucao(dt);
         requestAnimationFrame(quadro);
       }
 

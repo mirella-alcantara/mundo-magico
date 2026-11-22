@@ -195,8 +195,12 @@ const CEUS = {
 
 // ---------- renderer, scene, camera ----------
 const palco = document.getElementById('palco');
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+// No MSAA on the canvas: the scene is rendered through the EffectComposer, so it would only cost memory.
+const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+const PR_MAX = Math.min(devicePixelRatio, 1.75);
+const PR_MIN = Math.min(devicePixelRatio, 0.75);
+let pixelRatio = PR_MAX;
+renderer.setPixelRatio(pixelRatio);
 renderer.setSize(innerWidth, innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.15;
@@ -222,6 +226,31 @@ composer.addPass(new RenderPass(cena, camera));
 const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.7, 0.5, 0.86);
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
+
+// Adaptive resolution: when frames get slow, render fewer pixels (the costliest part is the bloom);
+// raise it back after a few good seconds, but never above a level that was already too slow.
+const desempenho = { soma: 0, n: 0, bons: 0, teto: Infinity };
+function ajustarResolucao(dt) {
+  desempenho.soma += dt;
+  desempenho.n += 1;
+  if (desempenho.soma < 1) return;
+  const mediaMs = (desempenho.soma / desempenho.n) * 1000;
+  desempenho.soma = desempenho.n = 0;
+  let novo = pixelRatio;
+  if (mediaMs > 25) {
+    desempenho.teto = pixelRatio;
+    desempenho.bons = 0;
+    novo = Math.max(PR_MIN, pixelRatio - 0.25);
+  } else if (mediaMs < 18 && ++desempenho.bons >= 5) {
+    desempenho.bons = 0;
+    if (pixelRatio + 0.25 < desempenho.teto) novo = Math.min(PR_MAX, pixelRatio + 0.25);
+  }
+  if (novo !== pixelRatio) {
+    pixelRatio = novo;
+    renderer.setPixelRatio(novo);
+    composer.setPixelRatio(novo);
+  }
+}
 
 const hemi = new THREE.HemisphereLight('#bfb0ff', '#3b2d6e', 0.9);
 cena.add(hemi);
@@ -1285,7 +1314,8 @@ function animarPontes(t) {
     a.y += 0.25 * A.s;
     const b = vTmp2.copy(B.k.grupo.position);
     b.y += 0.25 * B.s;
-    if (a.distanceToSquared(pt.a0) > 1e-4 || b.distanceToSquared(pt.b0) > 1e-4) {
+    // Rebuilding the tubes is costly: only when an end moved noticeably (~3 cm in island units).
+    if (a.distanceToSquared(pt.a0) > 1e-3 || b.distanceToSquared(pt.b0) > 1e-3) {
       pt.a0.copy(a);
       pt.b0.copy(b);
       const meio = a.clone().add(b).multiplyScalar(0.5);
@@ -1743,6 +1773,7 @@ function quadro() {
     mostrarCartao(foco, mouse[0], mouse[1]);
   } else mostrarCartao(null);
   composer.render(dt);
+  ajustarResolucao(dt);
   requestAnimationFrame(quadro);
 }
 

@@ -1,0 +1,838 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reinos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@1,500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --vidro: rgba(18, 14, 44, 0.66);
+    --vidro-borda: rgba(255, 255, 255, 0.16);
+    --texto: #f6f0ff;
+    --texto-2: rgba(246, 240, 255, 0.72);
+    --ouro: #ffd98a;
+    --lilas: #c9b6ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0a26; color: var(--texto); font-family: Inter, system-ui, sans-serif; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .hud { position: fixed; top: 20px; left: 24px; pointer-events: none; text-shadow: 0 2px 12px rgba(10, 6, 40, 0.6); }
+  .hud h1 { font-family: Cinzel, serif; font-weight: 700; letter-spacing: 0.18em; font-size: 26px; margin: 0; }
+  .hud p { margin: 4px 0 0; font-size: 13px; color: var(--texto-2); }
+  .controles { position: fixed; top: 20px; right: 20px; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; max-width: calc(100% - 200px); }
+  .controles button, .vazio button { font: 500 12px Inter, sans-serif; color: var(--texto); background: var(--vidro); border: 1px solid var(--vidro-borda); border-radius: 999px; padding: 7px 12px; cursor: pointer; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  .controles button:hover, .vazio button:hover { border-color: rgba(255, 255, 255, 0.4); }
+  .controles button[aria-pressed="true"] { background: rgba(255, 217, 138, 0.22); border-color: rgba(255, 217, 138, 0.6); }
+  .legenda { position: fixed; left: 24px; bottom: 18px; display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--texto-2); pointer-events: none; padding: 7px 14px; border-radius: 999px; background: var(--vidro); border: 1px solid var(--vidro-borda); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  .legenda span { display: inline-flex; align-items: center; gap: 6px; }
+  .legenda i { width: 18px; height: 3px; border-radius: 2px; display: inline-block; }
+  .cartao { position: fixed; width: 300px; padding: 16px 18px; background: var(--vidro); border: 1px solid var(--vidro-borda); border-radius: 16px; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); pointer-events: none; font-size: 13px; line-height: 1.45; opacity: 0; transform: translateY(6px); transition: opacity .18s, transform .18s; }
+  .cartao.visivel { opacity: 1; transform: none; }
+  .cartao .epiteto { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 15px; color: var(--texto-2); }
+  .cartao h2 { font-family: Cinzel, serif; font-size: 22px; margin: 0 0 8px; letter-spacing: 0.06em; }
+  .pilula { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 3px 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.1); }
+  .pilula::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .s-trabalhando { color: #8ff0c0; } .s-chamando { color: var(--ouro); } .s-repousando { color: var(--lilas); } .s-adormecido { color: #a8a3bf; }
+  .cartao dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 12px 0 0; }
+  .cartao dt { color: var(--texto-2); } .cartao dd { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cartao .pedido { margin: 10px 0 0; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 15px; }
+  .cartao .chamado { margin: 10px 0 0; color: var(--ouro); }
+  .cartao ul { margin: 10px 0 0; padding: 10px 0 0; list-style: none; border-top: 1px solid var(--vidro-borda); color: var(--texto-2); font-size: 12px; }
+  .cartao li { margin-top: 3px; }
+  .cartao .dica { margin-top: 10px; font-size: 11px; color: var(--texto-2); }
+  .vazio { position: fixed; left: 50%; top: 40%; transform: translate(-50%, -50%); text-align: center; max-width: 420px; padding: 0 16px; text-shadow: 0 2px 16px rgba(10, 6, 40, 0.7); }
+  .vazio h2 { font-family: Cinzel, serif; font-size: 22px; letter-spacing: 0.08em; margin: 0 0 8px; }
+  .vazio p { color: var(--texto-2); margin: 0 0 16px; font-size: 14px; }
+  [hidden] { display: none !important; }
+  @media (max-width: 640px) { .controles { max-width: 100%; top: 70px; left: 16px; right: 16px; justify-content: flex-start; } .hud { left: 16px; } .legenda { left: 16px; } .cartao { width: calc(100% - 32px); } }
+</style>
+</head>
+<body>
+<canvas id="mundo"></canvas>
+
+<header class="hud">
+  <h1>REINOS</h1>
+  <p id="resumo">Abrindo os portões…</p>
+</header>
+
+<nav class="controles" aria-label="Controles">
+  <button data-ceu="auto" aria-pressed="true">Céu da hora</button>
+  <button data-ceu="noite">Noite</button>
+  <button data-ceu="aurora">Aurora</button>
+  <button data-ceu="dia">Dia</button>
+  <button data-ceu="crepusculo">Crepúsculo</button>
+  <button id="som" aria-pressed="false">Som desligado</button>
+  <button id="demo" aria-pressed="false">Demonstração</button>
+</nav>
+
+<div class="legenda">
+  <span><i style="background:#ffd98a"></i>Farol: precisa de você</span>
+  <span><i style="background:#ffe6a8"></i>Ponte dourada: mesmo arquivo</span>
+  <span><i style="background:#c9b6ff"></i>Ponte lilás: mesmo projeto</span>
+</div>
+
+<div class="vazio" id="vazio" hidden>
+  <h2>O céu ainda está vazio</h2>
+  <p>Abra uma sessão do Claude Code e um reino vai surgir entre as nuvens.</p>
+  <button id="demo2">Ver demonstração</button>
+</div>
+
+<div class="cartao" id="cartao" role="tooltip"></div>
+
+<script>
+'use strict';
+// ---------- utilities ----------
+const hash = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+const rng = (seed) => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const lerp = (a, b, t) => a + (b - a) * t;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const hexRgb = (h) => { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+const rgba = (h, a) => { const [r, g, b] = hexRgb(h); return `rgba(${r},${g},${b},${a})`; };
+const mixHex = (a, b, t) => { const x = hexRgb(a), y = hexRgb(b); return '#' + x.map((v, i) => Math.round(lerp(v, y[i], t)).toString(16).padStart(2, '0')).join(''); };
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+const BIOMAS = {
+  'cristal-lunar':        { rocha: ['#5d5291', '#2a2250', '#16122e'], topo: '#3d6b72', borda: '#2a3f52', muro: ['#f3ecff', '#b8a9e0'], teto: '#3c4fae', janela: '#ffd88a', agua: '#cfe6ff', acento: '#b9a3ff', arvore: '#2f5a55', flora: 'cristais', epiteto: 'das Torres de Cristal' },
+  'cascatas-douradas':    { rocha: ['#cdb89c', '#8a7560', '#4d3f36'], topo: '#7d9a4f', borda: '#5c6f3a', muro: ['#fff6ea', '#e6cdb0'], teto: '#4b5f99', janela: '#ffcc66', agua: '#f4fbff', acento: '#ffd27a', arvore: '#56752f', flora: 'arvores', epiteto: 'das Cascatas Douradas' },
+  'prado-celeste':        { rocha: ['#b88f7d', '#8a6253', '#55392f'], topo: '#8fd16a', borda: '#5fa04a', muro: ['#fffaf0', '#ecdcc8'], teto: '#d4767f', janela: '#ffe199', agua: '#e8f7ff', acento: '#ff8fb1', arvore: '#4f9b48', flora: 'flores', epiteto: 'do Prado Celeste' },
+  'aurora-de-gelo':       { rocha: ['#a9c3d9', '#5f7f9e', '#2e4560'], topo: '#eef8ff', borda: '#b9d4ea', muro: ['#f4fcff', '#bfe0f5'], teto: '#5fbcd8', janela: '#9ff7d8', agua: '#dffbff', acento: '#7cf5c8', arvore: '#d7ecf8', flora: 'cristais', epiteto: 'da Aurora de Gelo' },
+  'floresta-de-lanternas':{ rocha: ['#6b5a4a', '#43372d', '#241c17'], topo: '#2f5a3a', borda: '#1f3d28', muro: ['#ecdfc6', '#b49d7c'], teto: '#7a3f2e', janela: '#ffb54d', agua: '#d6f0ff', acento: '#ffb54d', arvore: '#24472d', flora: 'lanternas', epiteto: 'das Mil Lanternas' },
+  'abismo-luminoso':      { rocha: ['#2c4a6b', '#1a2c48', '#0d1628'], topo: '#1f6f74', borda: '#155055', muro: ['#dcf7ff', '#8fd0e6'], teto: '#2b6fa8', janela: '#7ff0ff', agua: '#9ff2ff', acento: '#ff8fd8', arvore: '#ff7fc8', flora: 'corais', epiteto: 'do Abismo Luminoso' },
+  'jardim-sakura':        { rocha: ['#b8a3a8', '#7d6670', '#463840'], topo: '#9fcf7a', borda: '#6f9e58', muro: ['#fff7f8', '#f0d6dc'], teto: '#3f3a5c', janela: '#ffd6a0', agua: '#f0f8ff', acento: '#ffb7d0', arvore: '#ffb7d0', flora: 'sakura', epiteto: 'das Pétalas Eternas' },
+};
+const GUARDIOES = {
+  'dragão':            { corpo: '#eee9ff', brilho: '#a995ff', forma: 'dragao', vel: 0.55, tam: 1.3 },
+  'pégaso':            { corpo: '#ffffff', brilho: '#ffe3a1', forma: 'alado', vel: 0.6, tam: 1.1 },
+  'baleia celeste':    { corpo: '#7fb2ff', brilho: '#9fe1ff', forma: 'baleia', vel: 0.22, tam: 2.1 },
+  'raposa espiritual': { corpo: '#f3f7ff', brilho: '#a8e7ff', forma: 'raposa', vel: 0.7, tam: 1 },
+  'fada':              { corpo: '#fff3c2', brilho: '#ffd36b', forma: 'fada', vel: 1.1, tam: 0.7 },
+  'água-viva':         { corpo: '#ffd0ef', brilho: '#ff8fd8', forma: 'aguaviva', vel: 0.3, tam: 1.2 },
+  'fênix':             { corpo: '#ffc06b', brilho: '#ff7a3d', forma: 'dragao', vel: 0.75, tam: 1.1 },
+};
+const STATUS_TXT = { trabalhando: 'trabalhando', chamando: 'precisa de você', repousando: 'esperando um pedido', adormecido: 'adormecido' };
+const ALVOS = {
+  trabalhando: { luz: 1, fluxo: 1, farol: 0, sono: 0 },
+  chamando:    { luz: 0.85, fluxo: 0.55, farol: 1, sono: 0 },
+  repousando:  { luz: 0.45, fluxo: 0.3, farol: 0, sono: 0 },
+  adormecido:  { luz: 0.08, fluxo: 0, farol: 0, sono: 1 },
+};
+const ha = (iso) => {
+  const s = (Date.now() - Date.parse(iso)) / 1000;
+  if (!isFinite(s) || s < 45) return 'agora';
+  if (s < 3600) return `há ${Math.round(s / 60)} min`;
+  if (s < 86400) return `há ${Math.round(s / 3600)} h`;
+  return `há ${Math.round(s / 86400)} d`;
+};
+
+// ---------- canvas ----------
+const cv = document.getElementById('mundo');
+const ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+function redimensionar() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = innerWidth; H = innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  gerarCenario();
+}
+
+// ---------- sky ----------
+const CEUS = {
+  noite:      { topo: '#070726', meio: '#1d1756', base: '#5b3f8f', nuvem: '#b6a5e6', sombra: '#3b2d6e', estrelas: 1 },
+  aurora:     { topo: '#2b2f7a', meio: '#c47bb0', base: '#ffc9a3', nuvem: '#ffe3ee', sombra: '#a87fb8', estrelas: 0.25 },
+  dia:        { topo: '#7fa8f0', meio: '#d9c6f2', base: '#ffe6ee', nuvem: '#ffffff', sombra: '#d4c0e6', estrelas: 0 },
+  crepusculo: { topo: '#3a3577', meio: '#e8798a', base: '#ffc070', nuvem: '#ffe2c8', sombra: '#c27a8a', estrelas: 0.12 },
+};
+let modoCeu = 'auto';
+function ceuAtual() {
+  if (modoCeu !== 'auto') return { ...CEUS[modoCeu], nome: modoCeu };
+  const d = new Date(); const h = d.getHours() + d.getMinutes() / 60;
+  const marcos = [[0, 'noite'], [4.5, 'noite'], [6.5, 'aurora'], [8, 'dia'], [16.5, 'dia'], [18, 'crepusculo'], [19.5, 'noite'], [24, 'noite']];
+  for (let i = 0; i < marcos.length - 1; i++) {
+    const [h0, a] = marcos[i], [h1, b] = marcos[i + 1];
+    if (h >= h0 && h < h1) {
+      const t = (h - h0) / (h1 - h0), A = CEUS[a], B = CEUS[b];
+      const c = {}; for (const k of Object.keys(A)) c[k] = typeof A[k] === 'number' ? lerp(A[k], B[k], t) : mixHex(A[k], B[k], t);
+      c.nome = t < 0.5 ? a : b; return c;
+    }
+  }
+  return { ...CEUS.noite, nome: 'noite' };
+}
+
+let estrelas = [], nuvens = [], ilhotas = [], vagalumes = [], baleiaFundo = null, estrelaCadente = null;
+function gerarCenario() {
+  const r = rng(7);
+  estrelas = Array.from({ length: Math.round(W * H / 3500) }, () => ({ x: r() * W, y: r() * H * 0.7, r: r() * 1.3 + 0.2, f: r() * 6 }));
+  nuvens = [];
+  for (let camada = 0; camada < 5; camada++) {
+    const prof = camada / 4;
+    const n = Math.ceil(W / 90) + 4;
+    for (let i = 0; i < n; i++) {
+      nuvens.push({ camada, prof, x: r() * (W + 400) - 200, y: H * (0.64 + 0.07 * prof) + (r() - 0.5) * 40 + prof * 70, r: (45 + 70 * prof) * (0.6 + r() * 0.8), v: 3 + 12 * prof + r() * 4 });
+    }
+  }
+  ilhotas = Array.from({ length: 7 }, (_, i) => ({ x: r() * W, y: H * (0.12 + r() * 0.36), s: 0.12 + r() * 0.16, f: r() * 6, castelo: r() > 0.5 }));
+  vagalumes = Array.from({ length: 50 }, () => ({ x: r() * W, y: r() * H, v: 6 + r() * 14, f: r() * 6 }));
+}
+
+function desenharCeu(c, t) {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, c.topo); g.addColorStop(0.55, c.meio); g.addColorStop(1, c.base);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+  if (c.estrelas > 0.02) {
+    for (const e of estrelas) {
+      ctx.fillStyle = `rgba(255,255,255,${c.estrelas * (0.45 + 0.55 * Math.sin(t * 1.3 + e.f) ** 2)})`;
+      ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, 7); ctx.fill();
+    }
+    // crescent moon
+    const mx = W * 0.82, my = H * 0.16, mr = Math.min(W, H) * 0.05;
+    ctx.save(); ctx.globalAlpha = c.estrelas;
+    const halo = ctx.createRadialGradient(mx, my, mr * 0.5, mx, my, mr * 4);
+    halo.addColorStop(0, 'rgba(220,210,255,0.35)'); halo.addColorStop(1, 'rgba(220,210,255,0)');
+    ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(mx, my, mr * 4, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(mx, my, mr, 0, 7); ctx.clip();
+    ctx.fillStyle = '#f4efff'; ctx.beginPath();
+    ctx.arc(mx, my, mr, 0, Math.PI * 2); ctx.arc(mx - mr * 0.45, my - mr * 0.2, mr * 0.92, 0, Math.PI * 2, true);
+    ctx.fill('evenodd');
+    ctx.restore();
+    // shooting star
+    if (!estrelaCadente && Math.random() < 0.002 * c.estrelas) estrelaCadente = { x: Math.random() * W * 0.7, y: Math.random() * H * 0.3, t: 0 };
+    if (estrelaCadente) {
+      const s = estrelaCadente; s.t += 0.016;
+      const x = s.x + s.t * 600, y = s.y + s.t * 260;
+      const gg = ctx.createLinearGradient(x, y, x - 90, y - 39);
+      gg.addColorStop(0, `rgba(255,255,255,${0.9 * c.estrelas})`); gg.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.strokeStyle = gg; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 90, y - 39); ctx.stroke();
+      if (s.t > 0.9) estrelaCadente = null;
+    }
+  }
+  // low sun at dawn/dusk, high soft sun by day
+  const sol = c.nome === 'crepusculo' || c.nome === 'aurora' ? 1 - c.estrelas * 2 : c.nome === 'dia' ? 0.6 : 0;
+  if (sol > 0.02) {
+    const sx = c.nome === 'aurora' ? W * 0.78 : W * 0.24, sy = c.nome === 'dia' ? H * 0.14 : H * 0.5;
+    const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, Math.min(W, H) * 0.45);
+    sg.addColorStop(0, `rgba(255,250,230,${0.95 * sol})`); sg.addColorStop(0.06, `rgba(255,236,190,${0.8 * sol})`);
+    sg.addColorStop(0.25, `rgba(255,200,150,${0.25 * sol})`); sg.addColorStop(1, 'rgba(255,200,150,0)');
+    ctx.fillStyle = sg; ctx.fillRect(0, 0, W, H);
+  }
+  // aurora curtains on the coldest skies
+  if (c.estrelas > 0.5) {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = (c.estrelas - 0.5) * 0.5;
+    for (let k = 0; k < 3; k++) {
+      ctx.beginPath();
+      for (let x = 0; x <= W; x += 20) {
+        const y = H * (0.12 + k * 0.05) + Math.sin(x * 0.004 + t * 0.2 + k) * 30;
+        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.lineTo(W, 0); ctx.lineTo(0, 0); ctx.closePath();
+      const ag = ctx.createLinearGradient(0, 0, 0, H * 0.3);
+      ag.addColorStop(0, 'rgba(120,255,200,0)'); ag.addColorStop(0.7, k === 1 ? 'rgba(170,140,255,0.12)' : 'rgba(110,255,200,0.1)'); ag.addColorStop(1, 'rgba(110,255,200,0)');
+      ctx.fillStyle = ag; ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+function desenharIlhotas(c, t) {
+  for (const il of ilhotas) {
+    const y = il.y + Math.sin(t * 0.3 + il.f) * 6, s = il.s * Math.min(W, H) / 400;
+    ctx.save(); ctx.translate(il.x, y); ctx.scale(s, s);
+    ctx.fillStyle = rgba(c.sombra, 0.55);
+    ctx.beginPath(); ctx.moveTo(-100, 0); ctx.quadraticCurveTo(-60, 60, -8, 150); ctx.lineTo(10, 140); ctx.quadraticCurveTo(60, 60, 100, 0); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, 0, 100, 16, 0, 0, 7); ctx.fill();
+    if (il.castelo) {
+      for (const [x, h] of [[-30, 50], [0, 90], [28, 60]]) { ctx.fillRect(x - 7, -h, 14, h); ctx.beginPath(); ctx.moveTo(x - 9, -h); ctx.lineTo(x, -h - 28); ctx.lineTo(x + 9, -h); ctx.fill(); }
+    } else {
+      for (const x of [-40, -15, 30]) { ctx.beginPath(); ctx.arc(x, -10, 16, 0, 7); ctx.fill(); }
+    }
+    ctx.restore();
+  }
+  // a sky whale drifting far away, every so often
+  if (!baleiaFundo && Math.random() < 0.0008) baleiaFundo = { x: -200, y: H * (0.18 + Math.random() * 0.25), s: 0.6 + Math.random() * 0.5 };
+  if (baleiaFundo) {
+    const b = baleiaFundo; b.x += 0.35;
+    desenharCriatura('baleia', b.x, b.y + Math.sin(t * 0.4) * 8, b.s * 2.4, 1, '#cfd6ff', '#9fb6ff', t, 0.35);
+    if (b.x > W + 220) baleiaFundo = null;
+  }
+}
+
+function desenharNuvens(c, t, camadas) {
+  for (const n of nuvens) {
+    if (!camadas.includes(n.camada)) continue;
+    const x = ((n.x + t * n.v) % (W + 400)) - 200;
+    const g = ctx.createRadialGradient(x, n.y - n.r * 0.2, 0, x, n.y, n.r);
+    const claro = mixHex(c.nuvem, c.sombra, 0.25 * (1 - n.prof));
+    g.addColorStop(0, rgba(claro, 0.95)); g.addColorStop(0.55, rgba(mixHex(claro, c.sombra, 0.35), 0.6)); g.addColorStop(1, rgba(c.sombra, 0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, n.y, n.r, 0, 7); ctx.fill();
+  }
+  if (camadas.includes(4)) {
+    const g = ctx.createLinearGradient(0, H * 0.78, 0, H);
+    g.addColorStop(0, rgba(c.nuvem, 0)); g.addColorStop(1, rgba(mixHex(c.nuvem, c.sombra, 0.3), 0.95));
+    ctx.fillStyle = g; ctx.fillRect(0, H * 0.78, W, H * 0.22);
+  }
+}
+
+function desenharVagalumes(c, t) {
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const a = 0.25 + c.estrelas * 0.6;
+  for (const v of vagalumes) {
+    v.y -= v.v * 0.016; if (v.y < -10) { v.y = H + 10; v.x = Math.random() * W; }
+    const x = v.x + Math.sin(t * 0.7 + v.f) * 14, br = a * (0.4 + 0.6 * Math.sin(t * 2 + v.f) ** 2);
+    const g = ctx.createRadialGradient(x, v.y, 0, x, v.y, 6);
+    g.addColorStop(0, `rgba(255,236,170,${br})`); g.addColorStop(1, 'rgba(255,236,170,0)');
+    ctx.fillStyle = g; ctx.fillRect(x - 6, v.y - 6, 12, 12);
+  }
+  ctx.restore();
+}
+
+// ---------- island geometry (unit space: rim 200 wide, centered, rim at y=0) ----------
+const RES = 2.6;
+function gerarIlha(semente, biomaNome) {
+  const b = BIOMAS[biomaNome] || BIOMAS['cascatas-douradas'];
+  const r = rng(semente);
+  const D = 150 + r() * 60;
+  const esq = [], dir = [], K = 7;
+  for (let k = 1; k <= K; k++) {
+    const f = k / (K + 1), y = D * Math.pow(f, 0.9), base = 100 * Math.pow(1 - f, 1.15) + 6;
+    esq.push([-base - (r() * 14 - 4), y + (r() * 14 - 7)]);
+    dir.push([base + (r() * 14 - 4), y + (r() * 14 - 7)]);
+  }
+  const ponta = [(r() - 0.5) * 30, D + 10 + r() * 25];
+  const poli = [[-100, 0], ...esq, ponta, ...dir.reverse(), [100, 0]];
+  const bordaY = (x) => 18 * Math.sqrt(Math.max(0, 1 - (x / 100) ** 2));
+
+  // static base (rock, top, flora) painted once to an offscreen canvas
+  const OW = 300, OT = 60, OH = D + 60 + OT;
+  const off = document.createElement('canvas');
+  off.width = OW * RES; off.height = OH * RES;
+  const o = off.getContext('2d');
+  o.scale(RES, RES); o.translate(OW / 2, OT);
+
+  o.beginPath(); poli.forEach(([x, y], i) => i ? o.lineTo(x, y) : o.moveTo(x, y)); o.closePath();
+  const rg = o.createLinearGradient(0, 0, 0, D + 30);
+  rg.addColorStop(0, b.rocha[0]); rg.addColorStop(0.45, b.rocha[1]); rg.addColorStop(1, b.rocha[2]);
+  o.fillStyle = rg; o.fill();
+  o.save(); o.clip();
+  const luzLado = o.createLinearGradient(-100, 0, 100, 0);
+  luzLado.addColorStop(0, 'rgba(255,255,255,0.18)'); luzLado.addColorStop(0.5, 'rgba(255,255,255,0)'); luzLado.addColorStop(1, 'rgba(0,0,0,0.35)');
+  o.fillStyle = luzLado; o.fillRect(-110, 0, 220, D + 40);
+  for (let i = 0; i < 18; i++) {
+    const x = (r() - 0.5) * 180, y = r() * 20, len = 30 + r() * 110;
+    o.strokeStyle = r() > 0.4 ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.08)';
+    o.lineWidth = 1 + r() * 2.5; o.beginPath(); o.moveTo(x, y); o.lineTo(x * (0.8 + r() * 0.15), y + len); o.stroke();
+  }
+  o.restore();
+  // cliff band and top surface
+  o.fillStyle = b.borda; o.beginPath(); o.ellipse(0, 6, 100, 18, 0, 0, 7); o.fill();
+  const tg = o.createRadialGradient(-20, -6, 4, 0, 0, 110);
+  tg.addColorStop(0, mixHex(b.topo, '#ffffff', 0.25)); tg.addColorStop(1, b.topo);
+  o.fillStyle = tg; o.beginPath(); o.ellipse(0, 0, 100, 18, 0, 0, 7); o.fill();
+
+  const luzes = [];
+  // hanging vines (not on ice)
+  if (biomaNome !== 'aurora-de-gelo') {
+    for (let i = 0; i < 12; i++) {
+      const x = (r() - 0.5) * 180, y0 = bordaY(x) + 4, len = 10 + r() * 40;
+      o.strokeStyle = rgba(b.borda, 0.85); o.lineWidth = 1.2; o.beginPath(); o.moveTo(x, y0);
+      o.quadraticCurveTo(x + (r() - 0.5) * 10, y0 + len / 2, x + (r() - 0.5) * 6, y0 + len); o.stroke();
+    }
+  }
+  const pontoNoTopo = (afastar) => { for (let i = 0; i < 30; i++) { const x = (r() - 0.5) * 180, y = (r() - 0.5) * 2 * bordaY(x) * 0.8; if (Math.abs(x) > afastar) return [x, y]; } return [90, 0]; };
+  if (b.flora === 'cristais') {
+    for (let i = 0; i < 9; i++) {
+      const [x, y] = pontoNoTopo(40), h = 8 + r() * 16;
+      o.fillStyle = rgba(b.acento, 0.85); o.beginPath(); o.moveTo(x - 3, y); o.lineTo(x, y - h); o.lineTo(x + 3, y); o.fill();
+      o.fillStyle = 'rgba(255,255,255,0.5)'; o.beginPath(); o.moveTo(x, y); o.lineTo(x, y - h); o.lineTo(x + 3, y); o.fill();
+      luzes.push({ x, y: y - h / 2, cor: b.acento, r: 10 });
+    }
+    for (let i = 0; i < 5; i++) { // hanging crystals under the rock
+      const x = (r() - 0.5) * 120, y = D * (0.3 + r() * 0.4), h = 12 + r() * 18;
+      o.fillStyle = rgba(b.acento, 0.7); o.beginPath(); o.moveTo(x - 4, y); o.lineTo(x, y + h); o.lineTo(x + 4, y); o.fill();
+      luzes.push({ x, y: y + h / 2, cor: b.acento, r: 12 });
+    }
+  } else {
+    const nArv = b.flora === 'flores' ? 4 : 7;
+    for (let i = 0; i < nArv; i++) {
+      const [x, y] = pontoNoTopo(42);
+      for (let k = 0; k < 3; k++) {
+        const cx = x + (r() - 0.5) * 10, cy = y - 6 - r() * 8, rr = 5 + r() * 6;
+        o.fillStyle = k === 2 ? mixHex(b.arvore, '#ffffff', 0.25) : b.arvore;
+        o.beginPath(); o.arc(cx, cy, rr, 0, 7); o.fill();
+      }
+      if (b.flora === 'lanternas') luzes.push({ x: x + (r() - 0.5) * 8, y: y - 10, cor: b.acento, r: 9 });
+      if (b.flora === 'corais') luzes.push({ x, y: y - 8, cor: b.arvore, r: 12 });
+    }
+    if (b.flora === 'flores' || b.flora === 'sakura') {
+      const cores = b.flora === 'sakura' ? ['#ffd1e0', '#ffffff', '#ffb7d0'] : ['#ff8fb1', '#ffe27a', '#ffffff', '#c9a8ff'];
+      for (let i = 0; i < 70; i++) { const [x, y] = pontoNoTopo(0); o.fillStyle = cores[i % cores.length]; o.beginPath(); o.arc(x, y, 1 + r() * 1.3, 0, 7); o.fill(); }
+    }
+  }
+  if (b.flora === 'lanternas' || b.flora === 'corais' || true) {
+    for (let i = 0; i < 6; i++) { const x = (r() - 0.5) * 170; luzes.push({ x, y: bordaY(x) + 2, cor: b.janela, r: 6, lanterna: true }); }
+  }
+
+  // towers: main keep first, then outward
+  const torres = [];
+  [0, -1, 1, -2, 2, -3, 3, -4, 4].forEach((idx) => {
+    const w = idx === 0 ? 22 : 11 + r() * 7;
+    const h = idx === 0 ? 100 + r() * 25 : Math.max(30, 80 - Math.abs(idx) * 12 + r() * 22);
+    torres.push({ x: idx * 15 + (r() - 0.5) * 6, w, h, teto: w * (1.5 + r() * 0.9), janelas: Array.from({ length: Math.max(1, Math.floor(h / 24)) }, (_, j) => ({ y: 14 + j * 22 + r() * 4, f: r() * 6 })) });
+  });
+
+  const cascatas = [];
+  const nCasc = 1 + Math.floor(r() * 3);
+  for (let i = 0; i < nCasc; i++) { let x = (r() - 0.5) * 150; if (Math.abs(x) < 25) x += 40 * Math.sign(x || 1); cascatas.push({ x, y: bordaY(x), w: 4 + r() * 6, f: r() * 10 }); }
+
+  return { off, OW, OH, OT, D, torres, cascatas, luzes, b };
+}
+
+// ---------- creatures ----------
+function brilho(x, y, raio, cor, a) {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, raio);
+  g.addColorStop(0, rgba(cor, a)); g.addColorStop(1, rgba(cor, 0));
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, raio, 0, 7); ctx.fill();
+}
+function desenharCriatura(forma, x, y, s, dir, corpo, cor, t, alfa = 1) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s * dir, s); ctx.globalAlpha *= alfa;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; brilho(0, 0, 26, cor, 0.35); ctx.restore();
+  ctx.fillStyle = corpo; ctx.strokeStyle = corpo;
+  const bate = Math.sin(t * 9);
+  if (forma === 'dragao' || forma === 'alado') {
+    ctx.beginPath(); ctx.moveTo(-14, 2); ctx.quadraticCurveTo(-4, -4, 8, -2); ctx.quadraticCurveTo(12, -3, 14, -6); ctx.lineTo(15, -3); ctx.quadraticCurveTo(6, 4, -14, 2); ctx.fill();
+    if (forma === 'dragao') { ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-14, 2); ctx.quadraticCurveTo(-20, 0, -24, 5); ctx.stroke(); }
+    ctx.globalAlpha *= 0.9;
+    ctx.beginPath(); ctx.moveTo(-4, -2); ctx.lineTo(2 - 6 * bate, -16 * bate - 4); ctx.lineTo(6, -2); ctx.fill();
+    ctx.globalAlpha *= 0.6;
+    ctx.beginPath(); ctx.moveTo(-2, -1); ctx.lineTo(-6 + 4 * bate, -12 * bate - 2); ctx.lineTo(4, -1); ctx.fill();
+  } else if (forma === 'baleia') {
+    ctx.beginPath(); ctx.ellipse(0, 0, 16, 6, 0, 0, 7); ctx.fill();
+    const cauda = Math.sin(t * 2) * 3;
+    ctx.beginPath(); ctx.moveTo(-14, 0); ctx.lineTo(-22, -5 + cauda); ctx.lineTo(-20, 0); ctx.lineTo(-22, 5 + cauda); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.7)'; for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.arc(-8 + i * 4, -2 + (i % 2), 0.8, 0, 7); ctx.fill(); }
+  } else if (forma === 'raposa') {
+    ctx.beginPath(); ctx.ellipse(0, 0, 8, 4, 0, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(6, -2); ctx.lineTo(12, -4); ctx.lineTo(10, 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(9, -3); ctx.lineTo(10, -8); ctx.lineTo(12, -4); ctx.fill();
+    ctx.globalAlpha *= 0.85; ctx.beginPath(); ctx.moveTo(-6, 0); ctx.quadraticCurveTo(-18, -10 - bate * 2, -22, 2); ctx.quadraticCurveTo(-14, 4, -6, 2); ctx.fill();
+  } else if (forma === 'fada') {
+    ctx.globalAlpha *= 0.6;
+    ctx.beginPath(); ctx.ellipse(-3, -3, 5, 2.5 + bate * 1.5, -0.6, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(3, -3, 5, 2.5 + bate * 1.5, 0.6, 0, 7); ctx.fill();
+    ctx.globalAlpha /= 0.6; ctx.beginPath(); ctx.arc(0, 0, 2.6, 0, 7); ctx.fill();
+  } else if (forma === 'aguaviva') {
+    const p = Math.sin(t * 2.4);
+    ctx.beginPath(); ctx.ellipse(0, 0, 9 + p, 7 - p, 0, Math.PI, 0); ctx.fill();
+    ctx.lineWidth = 1; ctx.globalAlpha *= 0.7;
+    for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.moveTo(i * 3, 0); ctx.quadraticCurveTo(i * 3 + Math.sin(t * 3 + i) * 3, 8, i * 3, 16 + p * 2); ctx.stroke(); }
+  }
+  ctx.restore();
+}
+
+// ---------- kingdoms ----------
+const reinos = new Map(); // sessao -> visual state
+let dados = { reinos: [], pontes: [] };
+let pontesVistas = new Map();
+let somLigado = false, audio = null;
+
+function tocarSino() {
+  if (!somLigado) return;
+  audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+  const agora = audio.currentTime;
+  [659.25, 987.77, 1318.5].forEach((f, i) => {
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.type = 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(0, agora + i * 0.12); g.gain.linearRampToValueAtTime(0.08, agora + i * 0.12 + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, agora + i * 0.12 + 1.8);
+    o.connect(g).connect(audio.destination); o.start(agora + i * 0.12); o.stop(agora + i * 0.12 + 2);
+  });
+}
+
+function aplicarDados(novo) {
+  dados = novo;
+  const vistos = new Set();
+  for (const r of novo.reinos) {
+    vistos.add(r.sessao);
+    let v = reinos.get(r.sessao);
+    if (!v) {
+      const geo = gerarIlha(hash(r.sessao), r.bioma);
+      v = { geo, x: W / 2, y: H * 1.1, s: 0.2, alfa: 0, luz: 0, fluxo: 0, farol: 0, sono: 0, rastro: [], novo: true, fase: (hash(r.sessao) % 1000) / 100, nasceu: performance.now() };
+      reinos.set(r.sessao, v);
+    } else if (v.r && v.r.status !== 'chamando' && r.status === 'chamando') tocarSino();
+    v.r = r;
+  }
+  for (const [k, v] of reinos) if (!vistos.has(k)) { v.saindo = true; }
+
+  const agora = performance.now();
+  const novas = new Map();
+  for (const p of novo.pontes) { const k = p.a + '|' + p.b; novas.set(k, pontesVistas.get(k) ?? agora); }
+  pontesVistas = novas;
+
+  const despertos = novo.reinos.filter((r) => r.status !== 'adormecido');
+  const chamando = despertos.filter((r) => r.status === 'chamando').length;
+  const trabalhando = despertos.filter((r) => r.status === 'trabalhando').length;
+  const partes = [];
+  partes.push(despertos.length ? `${despertos.length} ${despertos.length === 1 ? 'reino desperto' : 'reinos despertos'}` : 'Nenhum reino desperto');
+  if (trabalhando) partes.push(`${trabalhando} trabalhando`);
+  if (chamando) partes.push(`${chamando} ${chamando === 1 ? 'precisa' : 'precisam'} de você`);
+  document.getElementById('resumo').textContent = partes.join(' · ') + (modoDemo ? ' · demonstração' : '');
+  document.title = chamando ? `(${chamando}) Reinos` : 'Reinos';
+  document.getElementById('vazio').hidden = novo.reinos.length > 0;
+}
+
+function posicionar() {
+  const lista = dados.reinos;
+  const despertos = lista.filter((r) => r.status !== 'adormecido').sort((a, b) => (a.projeto || '').localeCompare(b.projeto || '') || (a.inicio || '').localeCompare(b.inicio || ''));
+  const adorm = lista.filter((r) => r.status === 'adormecido');
+  const n = despertos.length;
+  const s = clamp(Math.min(W / (Math.max(n, 1) * 250 + 120), H / 640), 0.42, 1.15);
+  despertos.forEach((r, i) => {
+    const v = reinos.get(r.sessao); if (!v) return;
+    const u = n === 1 ? 0.5 : 0.1 + 0.8 * (i / (n - 1));
+    v.tx = W * u; v.ty = H * 0.36 + (i % 2 ? H * 0.08 : -H * 0.01) + ((hash(r.sessao) % 30) - 15);
+    v.ts = s; v.talfa = 1; v.prof = 1;
+    if (v.novo) { v.x = v.tx; v.y = v.ty + 90 * s; v.s = s * 0.85; v.novo = false; }
+  });
+  adorm.forEach((r, i) => {
+    const v = reinos.get(r.sessao); if (!v) return;
+    const u = (i + 0.5) / adorm.length;
+    v.tx = W * (0.08 + 0.84 * u); v.ty = H * 0.2 + (i % 2) * H * 0.04;
+    v.ts = s * 0.42; v.talfa = 0.55; v.prof = 0;
+    if (v.novo) { v.x = v.tx; v.y = v.ty + 40 * s; v.s = v.ts; v.novo = false; }
+  });
+}
+
+function atualizarReinos(dt) {
+  for (const [k, v] of reinos) {
+    if (v.saindo) { v.talfa = 0; if (v.alfa < 0.02) { reinos.delete(k); continue; } }
+    const alvo = ALVOS[v.r.status] || ALVOS.repousando;
+    const e = Math.min(1, dt * 1.6);
+    v.x = lerp(v.x, v.tx ?? v.x, Math.min(1, dt * 1.2));
+    v.y = lerp(v.y, v.ty ?? v.y, Math.min(1, dt * 1.2));
+    v.s = lerp(v.s, v.ts ?? v.s, Math.min(1, dt * 1.2));
+    v.alfa = lerp(v.alfa, v.talfa ?? 1, Math.min(1, dt * 1.5));
+    for (const p of ['luz', 'fluxo', 'farol', 'sono']) v[p] = lerp(v[p], alvo[p], e);
+  }
+}
+
+function nTorres(r) { return clamp(2 + Math.floor(Math.log2(1 + (Number(r.acoes) || 0))), 2, 9); }
+function topoDaTorre(v) {
+  const t = v.geo.torres[0];
+  return { x: v.x + t.x * v.s, y: v.y + v.bob + (-t.h - t.teto + 2) * v.s };
+}
+
+function desenharIlha(v, t) {
+  const { geo } = v, b = geo.b, s = v.s;
+  v.bob = Math.sin(t * 0.6 + v.fase) * 6 * s + v.sono * 20 * s;
+  ctx.save();
+  ctx.globalAlpha = v.alfa;
+  ctx.translate(v.x, v.y + v.bob); ctx.scale(s, s);
+
+  ctx.drawImage(geo.off, -geo.OW / 2, -geo.OT, geo.OW, geo.OH);
+
+  // waterfalls
+  for (const c of geo.cascatas) {
+    const f = v.fluxo; if (f < 0.03) continue;
+    const L = 220 + 160 * f;
+    const g = ctx.createLinearGradient(0, c.y, 0, c.y + L);
+    g.addColorStop(0, rgba(b.agua, 0.9 * f)); g.addColorStop(0.7, rgba(b.agua, 0.35 * f)); g.addColorStop(1, rgba(b.agua, 0));
+    ctx.fillStyle = g; ctx.fillRect(c.x - c.w / 2 * (0.5 + f / 2), c.y, c.w * (0.5 + f / 2), L);
+    ctx.save(); ctx.strokeStyle = rgba('#ffffff', 0.6 * f); ctx.lineWidth = 1.2; ctx.setLineDash([6, 14]); ctx.lineDashOffset = -t * 90 - c.f * 20;
+    ctx.beginPath(); ctx.moveTo(c.x - c.w * 0.2, c.y); ctx.lineTo(c.x - c.w * 0.2, c.y + L * 0.8); ctx.moveTo(c.x + c.w * 0.25, c.y); ctx.lineTo(c.x + c.w * 0.25, c.y + L * 0.7); ctx.stroke(); ctx.restore();
+    brilho(c.x, c.y + 4, 14, b.agua, 0.35 * f);
+  }
+
+  // castle
+  const n = nTorres(v.r);
+  const vis = geo.torres.slice(0, n);
+  const xs = vis.map((q) => q.x);
+  const minX = Math.min(...xs) - 10, maxX = Math.max(...xs) + 10;
+  const muro = ctx.createLinearGradient(0, -30, 0, 4);
+  muro.addColorStop(0, b.muro[0]); muro.addColorStop(1, b.muro[1]);
+  ctx.fillStyle = muro; ctx.fillRect(minX, -16, maxX - minX, 20);
+  for (let x = minX; x < maxX; x += 6) ctx.fillRect(x, -20, 3, 4);
+  const ordem = [...vis].sort((a, c) => a.h - c.h);
+  for (const q of ordem) {
+    const tg = ctx.createLinearGradient(q.x - q.w / 2, 0, q.x + q.w / 2, 0);
+    tg.addColorStop(0, b.muro[0]); tg.addColorStop(1, b.muro[1]);
+    ctx.fillStyle = tg; ctx.fillRect(q.x - q.w / 2, -q.h, q.w, q.h + 2);
+    ctx.fillStyle = b.teto; ctx.beginPath(); ctx.moveTo(q.x - q.w / 2 - 2, -q.h); ctx.lineTo(q.x, -q.h - q.teto); ctx.lineTo(q.x + q.w / 2 + 2, -q.h); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.beginPath(); ctx.moveTo(q.x - q.w / 2 - 2, -q.h); ctx.lineTo(q.x, -q.h - q.teto); ctx.lineTo(q.x - 1, -q.h); ctx.fill();
+    for (const j of q.janelas) {
+      if (j.y > q.h - 6) continue;
+      const a = v.luz * (0.75 + 0.25 * Math.sin(t * 3 + j.f));
+      ctx.fillStyle = mixHex('#2a2440', b.janela, clamp(a, 0, 1));
+      ctx.fillRect(q.x - 1.8, -q.h + j.y, 3.6, 6);
+      if (a > 0.2) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; brilho(q.x, -q.h + j.y + 3, 9, b.janela, 0.35 * a); ctx.restore(); }
+    }
+  }
+  ctx.fillStyle = mixHex('#2a2440', b.janela, v.luz);
+  ctx.beginPath(); ctx.moveTo(-5, 4); ctx.lineTo(-5, -6); ctx.arc(0, -6, 5, Math.PI, 0); ctx.lineTo(5, 4); ctx.fill();
+
+  // lights: lanterns, crystals, corals
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const noite = 0.4 + v.luz * 0.6;
+  for (const l of geo.luzes) brilho(l.x, l.y, l.r, l.cor, (l.lanterna ? 0.5 : 0.35) * noite * (0.7 + 0.3 * Math.sin(t * 2 + l.x)));
+  ctx.restore();
+
+  ctx.restore();
+}
+
+function desenharFarol(v, t) {
+  if (v.farol < 0.03) return;
+  const { x, y } = topoDaTorre(v), f = v.farol * v.alfa;
+  const pulso = 0.6 + 0.4 * Math.sin(t * 3);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const larg = 26 * v.s;
+  const g = ctx.createLinearGradient(x - larg, 0, x + larg, 0);
+  g.addColorStop(0, 'rgba(255,217,138,0)'); g.addColorStop(0.5, `rgba(255,226,160,${0.4 * f * pulso})`); g.addColorStop(1, 'rgba(255,217,138,0)');
+  ctx.fillStyle = g; ctx.fillRect(x - larg, 0, larg * 2, y);
+  brilho(x, y, 40 * v.s + 10, '#ffd98a', 0.7 * f);
+  for (let k = 0; k < 3; k++) {
+    const fase = ((t * 0.6 + k / 3) % 1);
+    ctx.strokeStyle = `rgba(255,217,138,${(1 - fase) * 0.6 * f})`; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(x, y, fase * 70 * v.s + 6, fase * 22 * v.s + 2, 0, 0, 7); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function desenharGuardiao(v, t) {
+  const g = GUARDIOES[v.r.guardiao] || GUARDIOES['fada'];
+  const s = v.s, st = v.r.status;
+  let x, y;
+  if (st === 'chamando') {
+    const topo = topoDaTorre(v);
+    x = topo.x + Math.cos(t * 2 + v.fase) * 26 * s; y = topo.y - 30 * s + Math.sin(t * 3) * 8 * s;
+  } else if (st === 'adormecido') {
+    x = v.x + 60 * s; y = v.y + v.bob - 6 * s;
+  } else {
+    const vel = g.vel * (st === 'trabalhando' ? 1 : 0.35);
+    const a = t * vel + v.fase;
+    const rx = (g.forma === 'baleia' ? 150 : 135) * s, ry = 38 * s;
+    const cy = v.y + v.bob + (g.forma === 'baleia' || g.forma === 'aguaviva' ? 70 * s : -70 * s);
+    x = v.x + Math.cos(a) * rx; y = cy + Math.sin(a) * ry;
+  }
+  v.gx = v.gx ?? x; v.gy = v.gy ?? y;
+  const dx = x - v.gx; v.gx = lerp(v.gx, x, 0.15); v.gy = lerp(v.gy, y, 0.15);
+  if (Math.abs(dx) > 0.05) v.gdir = dx > 0 ? 1 : -1;
+  v.rastro.push([v.gx, v.gy]); if (v.rastro.length > 26) v.rastro.shift();
+  const alfa = v.alfa * (st === 'adormecido' ? 0.35 : 1);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (let i = 1; i < v.rastro.length; i++) {
+    const [a1, b1] = v.rastro[i - 1], [a2, b2] = v.rastro[i];
+    ctx.strokeStyle = rgba(g.brilho, (i / v.rastro.length) * 0.5 * alfa); ctx.lineWidth = 2.4 * s * (i / v.rastro.length) + 0.5;
+    ctx.beginPath(); ctx.moveTo(a1, b1); ctx.lineTo(a2, b2); ctx.stroke();
+  }
+  ctx.restore();
+  ctx.save(); ctx.globalAlpha = alfa;
+  desenharCriatura(g.forma, v.gx, v.gy, s * g.tam, v.gdir || 1, g.corpo, g.brilho, t + v.fase);
+  ctx.restore();
+}
+
+function desenharEmissarios(v, t) {
+  const n = Math.min(5, Number(v.r.emissarios) || 0);
+  for (let i = 0; i < n; i++) {
+    const a = t * 0.35 + (i / n) * Math.PI * 2, s = v.s;
+    const x = v.x + Math.cos(a) * 165 * s, y = v.y + v.bob + 30 * s + Math.sin(a) * 34 * s;
+    ctx.save(); ctx.globalAlpha = v.alfa;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = 'rgba(255,240,200,0.25)'; ctx.lineWidth = 1; ctx.setLineDash([2, 5]); ctx.lineDashOffset = -t * 20;
+    ctx.beginPath(); ctx.moveTo(v.x, v.y + v.bob); ctx.lineTo(x, y); ctx.stroke(); ctx.restore();
+    ctx.translate(x, y); ctx.scale(s * 0.9, s * 0.9);
+    ctx.fillStyle = v.geo.b.rocha[1]; ctx.beginPath(); ctx.moveTo(-14, 0); ctx.lineTo(0, 22); ctx.lineTo(14, 0); ctx.fill();
+    ctx.fillStyle = v.geo.b.topo; ctx.beginPath(); ctx.ellipse(0, 0, 14, 3.5, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = v.geo.b.muro[0]; ctx.fillRect(-3, -16, 6, 16);
+    ctx.fillStyle = v.geo.b.teto; ctx.beginPath(); ctx.moveTo(-4, -16); ctx.lineTo(0, -25); ctx.lineTo(4, -16); ctx.fill();
+    ctx.globalCompositeOperation = 'lighter'; brilho(0, -10, 10, v.geo.b.janela, 0.6);
+    ctx.restore();
+  }
+}
+
+function pontoBezier(p0, p1, p2, u) { const a = (1 - u) ** 2, b = 2 * (1 - u) * u, c = u * u; return [a * p0[0] + b * p1[0] + c * p2[0], a * p0[1] + b * p1[1] + c * p2[1]]; }
+function desenharPontes(t) {
+  const agora = performance.now();
+  for (const p of dados.pontes) {
+    const A = reinos.get(p.a), B = reinos.get(p.b);
+    if (!A || !B || A.bob === undefined || B.bob === undefined) continue;
+    const p0 = [A.x, A.y + A.bob - 8 * A.s], p2 = [B.x, B.y + B.bob - 8 * B.s];
+    const dist = Math.hypot(p2[0] - p0[0], p2[1] - p0[1]);
+    const p1 = [(p0[0] + p2[0]) / 2, Math.min(p0[1], p2[1]) - Math.min(160, dist * 0.32)];
+    const dormindo = A.r.status === 'adormecido' || B.r.status === 'adormecido';
+    const k = (dormindo ? 0.22 : 1) * Math.min(A.alfa, B.alfa);
+    const prog = clamp((agora - (pontesVistas.get(p.a + '|' + p.b) ?? 0)) / 2200, 0, 1);
+    const cor = p.tipo === 'ponte' ? '#ffe6a8' : '#c9b6ff';
+    const N = 48, M = Math.max(2, Math.round(N * prog));
+    const pts = []; for (let i = 0; i <= M; i++) pts.push(pontoBezier(p0, p1, p2, (i / N)));
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+    const tracar = () => { ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke(); };
+    ctx.strokeStyle = rgba(cor, 0.1 * k); ctx.lineWidth = 16; tracar();
+    ctx.strokeStyle = rgba(cor, 0.22 * k); ctx.lineWidth = 6; tracar();
+    if (p.tipo !== 'ponte') { ctx.setLineDash([5, 9]); ctx.lineDashOffset = -t * 18; }
+    ctx.strokeStyle = rgba('#ffffff', 0.75 * k); ctx.lineWidth = 1.6; tracar();
+    ctx.setLineDash([]);
+    if (prog < 1) { const [x, y] = pts[pts.length - 1]; brilho(x, y, 22, cor, 0.9 * k); }
+    else for (let i = 0; i < 5; i++) {
+      const u = (t * 0.12 + i / 5) % 1, [x, y] = pontoBezier(p0, p1, p2, i % 2 ? u : 1 - u);
+      brilho(x, y, 9, cor, 0.85 * k);
+    }
+    ctx.restore();
+  }
+}
+
+function desenharRotulo(v) {
+  const r = v.r, s = v.s;
+  const x = v.x, y = v.y + v.bob + 58 * s + 8;
+  ctx.save(); ctx.globalAlpha = v.alfa * (r.status === 'adormecido' ? 0.7 : 1);
+  ctx.textAlign = 'center'; ctx.shadowColor = 'rgba(12,8,40,0.85)'; ctx.shadowBlur = 10;
+  ctx.fillStyle = '#fbf7ff';
+  ctx.font = `700 ${Math.round(clamp(17 * s + 3, 11, 20))}px Cinzel, serif`;
+  ctx.fillText(r.reino || r.nota, x, y);
+  ctx.font = `500 ${Math.round(clamp(11 * s + 2, 10, 13))}px Inter, sans-serif`;
+  const cores = { trabalhando: '#a6f5cf', chamando: '#ffd98a', repousando: '#d8ccff', adormecido: '#c4bfd8' };
+  ctx.fillStyle = cores[r.status] || '#fff';
+  ctx.fillText(`${r.projeto} · ${STATUS_TXT[r.status] || r.status} · ${ha(r.desde)}`, x, y + 16);
+  ctx.restore();
+}
+
+// ---------- hover card ----------
+const cartao = document.getElementById('cartao');
+let foco = null, mouse = [-1, -1];
+function acharReino(mx, my) {
+  let melhor = null, md = Infinity;
+  for (const v of reinos.values()) {
+    if (v.bob === undefined || v.alfa < 0.3) continue;
+    const dx = (mx - v.x) / (120 * v.s), dy = (my - (v.y + v.bob + 10 * v.s)) / (130 * v.s);
+    const d = dx * dx + dy * dy;
+    if (d < 1 && d < md && (v.prof >= (melhor?.prof ?? 0))) { md = d; melhor = v; }
+  }
+  return melhor;
+}
+function mostrarCartao(v, mx, my) {
+  if (!v) { cartao.classList.remove('visivel'); cv.style.cursor = 'default'; return; }
+  const r = v.r, b = BIOMAS[r.bioma];
+  cv.style.cursor = 'pointer';
+  cartao.innerHTML = `
+    <div class="epiteto">O reino ${esc(b?.epiteto || '')}</div>
+    <h2>${esc(r.reino)}</h2>
+    <span class="pilula s-${esc(r.status)}">${esc(STATUS_TXT[r.status] || r.status)} · ${esc(ha(r.desde))}</span>
+    ${r.chamado ? `<p class="chamado">${esc(r.chamado)}</p>` : ''}
+    ${r.pedido ? `<p class="pedido">“${esc(r.pedido)}”</p>` : ''}
+    <dl>
+      <dt>Projeto</dt><dd>${esc(r.projeto)}</dd>
+      <dt>Guardião</dt><dd>${esc(r.guardiao)}</dd>
+      <dt>Feitos</dt><dd>${esc(r.acoes)} ações · ${nTorres(r)} torres</dd>
+      ${r.ferramenta ? `<dt>Agora</dt><dd>${esc(r.ferramenta)}</dd>` : ''}
+      ${Number(r.emissarios) ? `<dt>Emissários</dt><dd>${esc(r.emissarios)} em missão</dd>` : ''}
+      ${(r.arquivosRecentes || []).length ? `<dt>Tocou</dt><dd>${esc(r.arquivosRecentes.join(', '))}</dd>` : ''}
+    </dl>
+    ${(r.cronica || []).length ? `<ul>${r.cronica.slice(-4).map((l) => `<li>${esc(l.replace(/\[\[|\]\]/g, ''))}</li>`).join('')}</ul>` : ''}
+    <div class="dica">${modoDemo ? 'Reino de demonstração' : 'Clique para abrir a nota no Obsidian'}</div>`;
+  const cw = cartao.offsetWidth, ch = cartao.offsetHeight;
+  let x = mx + 18, y = my + 18;
+  if (x + cw > W - 12) x = mx - cw - 18;
+  if (y + ch > H - 12) y = H - ch - 12;
+  cartao.style.left = Math.max(12, x) + 'px'; cartao.style.top = Math.max(12, y) + 'px';
+  cartao.classList.add('visivel');
+}
+cv.addEventListener('mousemove', (e) => { mouse = [e.clientX, e.clientY]; foco = acharReino(e.clientX, e.clientY); mostrarCartao(foco, e.clientX, e.clientY); });
+cv.addEventListener('mouseleave', () => { foco = null; mostrarCartao(null); });
+cv.addEventListener('click', (e) => {
+  const v = acharReino(e.clientX, e.clientY);
+  if (v && v.r.arquivo && !modoDemo) location.href = 'obsidian://open?path=' + encodeURIComponent(v.r.arquivo);
+});
+
+// ---------- main loop ----------
+let ultimo = performance.now();
+function quadro(agora) {
+  const dt = Math.min(0.1, (agora - ultimo) / 1000); ultimo = agora;
+  const t = agora / 1000;
+  const c = ceuAtual();
+  posicionar(); atualizarReinos(dt);
+
+  desenharCeu(c, t);
+  desenharIlhotas(c, t);
+  desenharNuvens(c, t, [0, 1]);
+
+  const lista = [...reinos.values()].sort((a, b) => (a.prof ?? 0) - (b.prof ?? 0) || a.y - b.y);
+  const longe = lista.filter((v) => !v.prof), perto = lista.filter((v) => v.prof);
+  for (const v of longe) desenharIlha(v, t);
+  desenharNuvens(c, t, [2]);
+  for (const v of perto) v.bob = Math.sin(t * 0.6 + v.fase) * 6 * v.s + v.sono * 20 * v.s;
+  desenharPontes(t);
+  for (const v of perto) { desenharEmissarios(v, t); desenharIlha(v, t); }
+  desenharNuvens(c, t, [3, 4]);
+  for (const v of lista) { desenharFarol(v, t); desenharGuardiao(v, t); }
+  desenharVagalumes(c, t);
+  for (const v of lista) desenharRotulo(v);
+  if (foco) mostrarCartao(foco, mouse[0], mouse[1]);
+  requestAnimationFrame(quadro);
+}
+
+// ---------- data: live vault or demo ----------
+let modoDemo = false, fonte = null, timerDemo = null, conectado = false;
+function conectar() {
+  fonte = new EventSource('/eventos');
+  fonte.onmessage = (e) => { conectado = true; if (!modoDemo) aplicarDados(JSON.parse(e.data)); };
+  fonte.onerror = () => { if (!conectado && !modoDemo) document.getElementById('resumo').textContent = 'Sem conexão com o servidor dos reinos'; };
+}
+
+const DEMO = [
+  { sessao: 'demo-aurora', projeto: 'site-loja', bioma: 'cascatas-douradas', guardiao: 'dragão', status: 'trabalhando', acoes: 120, ferramenta: 'Edit', pedido: 'Refaça o carrinho de compras com cupom de desconto', arquivosRecentes: ['carrinho.tsx', 'cupom.ts'], emissarios: 2 },
+  { sessao: 'demo-lua', projeto: 'site-loja', bioma: 'cascatas-douradas', guardiao: 'fada', status: 'chamando', acoes: 18, chamado: 'Claude precisa da sua permissão para usar o Bash', pedido: 'Rode os testes do checkout' },
+  { sessao: 'demo-gelo', projeto: 'api-pagamentos', bioma: 'aurora-de-gelo', guardiao: 'baleia celeste', status: 'trabalhando', acoes: 40, ferramenta: 'Read', pedido: 'Investigue por que o webhook falha às vezes', arquivosRecentes: ['cupom.ts', 'webhook.ts'] },
+  { sessao: 'demo-lanterna', projeto: 'estudos', bioma: 'floresta-de-lanternas', guardiao: 'raposa espiritual', status: 'repousando', acoes: 7, pedido: 'Resuma o capítulo 3' },
+  { sessao: 'demo-sakura', projeto: 'blog', bioma: 'jardim-sakura', guardiao: 'água-viva', status: 'trabalhando', acoes: 260, ferramenta: 'Write', pedido: 'Escreva o post sobre reinos mágicos' },
+  { sessao: 'demo-abismo', projeto: 'notas', bioma: 'abismo-luminoso', guardiao: 'fênix', status: 'adormecido', acoes: 55 },
+  { sessao: 'demo-prado', projeto: 'agentes', bioma: 'prado-celeste', guardiao: 'pégaso', status: 'adormecido', acoes: 12 },
+];
+const NOMES = ['Aurerion', 'Seraquel', 'Thalwyn', 'Elosia', 'Zephdor', 'Mirawyn', 'Calune'];
+function dadosDemo() {
+  const agora = Date.now();
+  const reinosDemo = DEMO.map((d, i) => ({ ...d, reino: NOMES[i], nota: NOMES[i], desde: new Date(agora - (i + 1) * 97e3).toISOString(), inicio: new Date(agora - i * 1e6).toISOString(), cronica: ['O reino surgiu entre as nuvens', 'As torres se acenderam'] }));
+  return { reinos: reinosDemo, pontes: [{ a: 'demo-aurora', b: 'demo-lua', tipo: 'alianca' }, { a: 'demo-aurora', b: 'demo-gelo', tipo: 'ponte' }, { a: 'demo-abismo', b: 'demo-prado', tipo: 'alianca' }] };
+}
+function ligarDemo(ligar) {
+  modoDemo = ligar;
+  document.getElementById('demo').setAttribute('aria-pressed', String(ligar));
+  reinos.clear(); pontesVistas.clear();
+  clearInterval(timerDemo);
+  if (ligar) {
+    let d = dadosDemo(); aplicarDados(d);
+    timerDemo = setInterval(() => {
+      const despertos = d.reinos.filter((r) => r.status !== 'adormecido');
+      const r = despertos[Math.floor(Math.random() * despertos.length)];
+      const prox = { trabalhando: 'chamando', chamando: 'trabalhando', repousando: 'trabalhando' }[r.status];
+      if (prox) { r.status = prox; r.desde = new Date().toISOString(); }
+      d.reinos.forEach((x) => { if (x.status === 'trabalhando') x.acoes += 3; });
+      aplicarDados({ ...d, reinos: d.reinos.map((x) => ({ ...x })) });
+    }, 5000);
+  } else {
+    fetch('/api/reinos').then((r) => r.json()).then(aplicarDados).catch(() => aplicarDados({ reinos: [], pontes: [] }));
+  }
+}
+
+document.querySelectorAll('[data-ceu]').forEach((b) => b.addEventListener('click', () => {
+  modoCeu = b.dataset.ceu;
+  document.querySelectorAll('[data-ceu]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  try { localStorage.setItem('reinos-ceu', modoCeu); } catch {}
+}));
+document.getElementById('som').addEventListener('click', (e) => {
+  somLigado = !somLigado;
+  e.currentTarget.setAttribute('aria-pressed', String(somLigado));
+  e.currentTarget.textContent = somLigado ? 'Som ligado' : 'Som desligado';
+  if (somLigado) tocarSino();
+});
+document.getElementById('demo').addEventListener('click', () => ligarDemo(!modoDemo));
+document.getElementById('demo2').addEventListener('click', () => ligarDemo(true));
+
+try { const salvo = localStorage.getItem('reinos-ceu'); if (salvo && (salvo === 'auto' || CEUS[salvo])) document.querySelector(`[data-ceu="${salvo}"]`)?.click(); } catch {}
+addEventListener('resize', redimensionar);
+redimensionar();
+if (new URLSearchParams(location.search).has('demo')) ligarDemo(true); else conectar();
+requestAnimationFrame(quadro);
+</script>
+</body>
+</html>

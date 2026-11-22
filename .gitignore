@@ -1,0 +1,28 @@
+# Dependências
+node_modules/
+
+# Variáveis de ambiente (o .env.example é versionado)
+.env*
+!.env.example
+
+# Sistema / editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs e temporários
+*.log
+npm-debug.log*
+*.tmp
+*.lock
+
+# Claude Code (configurações locais)
+.claude/settings.local.json
+
+# Vault: as notas dos reinos são geradas pelo hook e contêm
+# IDs de sessão, caminhos locais e pedidos pessoais.
+vault/Reinos/*
+!vault/Reinos/.gitkeep
+vault/.obsidian/workspace*.json
+vault/.trash/

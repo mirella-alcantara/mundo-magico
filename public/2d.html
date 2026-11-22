@@ -241,6 +241,40 @@
         margin: 0 0 16px;
         font-size: 14px;
       }
+      .foco-barra {
+        position: fixed;
+        left: 50%;
+        bottom: 64px;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 8px;
+      }
+      .foco-barra button {
+        font:
+          500 13px Inter,
+          sans-serif;
+        color: var(--texto);
+        background: var(--vidro);
+        border: 1px solid var(--vidro-borda);
+        border-radius: 999px;
+        padding: 9px 16px;
+        cursor: pointer;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+      }
+      .foco-barra button:hover {
+        border-color: rgba(255, 255, 255, 0.45);
+      }
+      .foco-barra .ob {
+        background: rgba(255, 217, 138, 0.18);
+        border-color: rgba(255, 217, 138, 0.5);
+      }
+      canvas {
+        cursor: default;
+      }
+      canvas.sobre {
+        cursor: zoom-in;
+      }
       [hidden] {
         display: none !important;
       }
@@ -294,6 +328,10 @@
       <button id="demo2">Ver demonstração</button>
     </div>
 
+    <div class="foco-barra" id="focoBarra" hidden>
+      <button id="voltar">← Voltar (Esc)</button>
+      <button class="ob" id="abrirObsidian">Abrir a nota no Obsidian</button>
+    </div>
     <div class="cartao" id="cartao" role="tooltip"></div>
 
     <script>
@@ -1552,7 +1590,41 @@
       const cartao = document.getElementById('cartao');
       let foco = null,
         mouse = [-1, -1];
-      function acharReino(mx, my) {
+      // ---------- camera: click a kingdom to fly in ----------
+      const cam = { x: 0, y: 0, z: 1 },
+        camAlvo = { x: 0, y: 0, z: 1 };
+      let focado = null;
+      const focoBarra = document.getElementById('focoBarra');
+      function paraMundo(mx, my) {
+        return [(mx - W / 2) / cam.z + W / 2 + cam.x, (my - H / 2) / cam.z + H / 2 + cam.y];
+      }
+      function focarReino(v) {
+        focado = v;
+        focoBarra.hidden = false;
+        document.getElementById('abrirObsidian').hidden = modoDemo || !v.r.arquivo;
+      }
+      function sairDoFoco() {
+        focado = null;
+        focoBarra.hidden = true;
+      }
+      function atualizarCamera(dt) {
+        if (focado && !reinos.has(focado.r.sessao)) sairDoFoco();
+        if (focado) {
+          camAlvo.z = clamp(1.6 / Math.max(focado.s, 0.4), 1.4, 2.4);
+          camAlvo.x = focado.x - W / 2;
+          camAlvo.y = focado.y + (focado.bob || 0) - H / 2 + 20 * focado.s;
+        } else {
+          camAlvo.x = 0;
+          camAlvo.y = 0;
+          camAlvo.z = 1;
+        }
+        const k = 1 - Math.exp(-dt * 4);
+        cam.x += (camAlvo.x - cam.x) * k;
+        cam.y += (camAlvo.y - cam.y) * k;
+        cam.z += (camAlvo.z - cam.z) * k;
+      }
+      function acharReino(sx, sy) {
+        const [mx, my] = paraMundo(sx, sy);
         let melhor = null,
           md = Infinity;
         for (const v of reinos.values()) {
@@ -1598,7 +1670,7 @@
             .join('')}</ul>`
         : ''
     }
-    <div class="dica">${modoDemo ? 'Reino de demonstração' : 'Clique para abrir a nota no Obsidian'}</div>`;
+    <div class="dica">${modoDemo ? 'Reino de demonstração' : v === focado ? 'Use o botão abaixo para abrir a nota no Obsidian' : 'Clique para aproximar'}</div>`;
         const cw = cartao.offsetWidth,
           ch = cartao.offsetHeight;
         let x = mx + 18,
@@ -1612,6 +1684,7 @@
       cv.addEventListener('mousemove', (e) => {
         mouse = [e.clientX, e.clientY];
         foco = acharReino(e.clientX, e.clientY);
+        cv.classList.toggle('sobre', !!foco && foco !== focado);
         mostrarCartao(foco, e.clientX, e.clientY);
       });
       cv.addEventListener('mouseleave', () => {
@@ -1620,7 +1693,16 @@
       });
       cv.addEventListener('click', (e) => {
         const v = acharReino(e.clientX, e.clientY);
-        if (v && v.r.arquivo && !modoDemo) location.href = 'obsidian://open?path=' + encodeURIComponent(v.r.arquivo);
+        if (v) {
+          if (v !== focado) focarReino(v);
+        } else if (focado) sairDoFoco();
+      });
+      document.getElementById('voltar').addEventListener('click', sairDoFoco);
+      document.getElementById('abrirObsidian').addEventListener('click', () => {
+        if (focado?.r.arquivo) location.href = 'obsidian://open?path=' + encodeURIComponent(focado.r.arquivo);
+      });
+      addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') sairDoFoco();
       });
 
       // ---------- main loop ----------
@@ -1632,8 +1714,13 @@
         const c = ceuAtual();
         posicionar();
         atualizarReinos(dt);
+        atualizarCamera(dt);
 
         desenharCeu(c, t);
+        ctx.save();
+        ctx.translate(W / 2, H / 2);
+        ctx.scale(cam.z, cam.z);
+        ctx.translate(-W / 2 - cam.x, -H / 2 - cam.y);
         desenharIlhotas(c, t);
         desenharNuvens(c, t, [0, 1]);
 
@@ -1655,6 +1742,7 @@
         }
         desenharVagalumes(c, t);
         for (const v of lista) desenharRotulo(v);
+        ctx.restore();
         if (foco) mostrarCartao(foco, mouse[0], mouse[1]);
         ajustarResolucao(dt);
         requestAnimationFrame(quadro);

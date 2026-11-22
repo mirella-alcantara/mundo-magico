@@ -26,3 +26,10 @@ vault/Reinos/*
 !vault/Reinos/.gitkeep
 vault/.obsidian/workspace*.json
 vault/.trash/
+
+# Notas pessoais do vault (diário, índice e dados locais do projeto)
+vault/Projeto/
+vault/Índice de Reinos.md
+
+# Configuração do Obsidian quando a pasta do projeto é aberta como vault
+/.obsidian/

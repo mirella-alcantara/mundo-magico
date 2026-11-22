@@ -1,5 +1,6 @@
 // The city on top of each kingdom: every building mirrors something the session actually did.
 import * as THREE from 'three';
+import { estiloCasas, construirMarco, construirClima, DESCRICOES } from './biomas.js';
 
 const TOPO = 0.07; // island top surface height
 
@@ -119,11 +120,11 @@ export function construirCidade(r, b, semente, tex) {
   janelas.push(luzJanela);
 
   const oficios = lerOficios(r);
-  const sitios = [{ tipo: 'praca' }, ...oficios];
+  const sitios = [{ tipo: 'praca' }, { tipo: 'marco' }, ...oficios];
   const angulo0 = R() * Math.PI * 2;
   sitios.forEach((x, i) => {
     x.ang = angulo0 + (i / sitios.length) * Math.PI * 2;
-    x.raio = x.tipo === 'praca' ? 0.68 : x.tipo === 'porto' ? 0.86 : 0.76;
+    x.raio = x.tipo === 'praca' ? 0.68 : x.tipo === 'marco' ? 0.73 : x.tipo === 'porto' ? 0.86 : 0.76;
   });
   const ruas = [0, 1, 2, 3].map((i) => angulo0 + Math.PI / 4 + (i * Math.PI) / 2);
   const pos = (ang, raio, y = TOPO) => [Math.cos(ang) * raio, y, Math.sin(ang) * raio];
@@ -170,7 +171,7 @@ export function construirCidade(r, b, semente, tex) {
   const ocupado = (ang, raio) => {
     for (const x of sitios) {
       const d = Math.abs(Math.atan2(Math.sin(ang - x.ang), Math.cos(ang - x.ang)));
-      if (d < (x.tipo === 'praca' ? 0.36 : 0.3) && raio > 0.6) return true;
+      if (d < (x.tipo === 'praca' ? 0.36 : x.tipo === 'marco' ? 0.46 : 0.3) && raio > 0.6) return true;
     }
     for (const a of ruas) {
       const d = Math.abs(Math.atan2(Math.sin(ang - a), Math.cos(ang - a)));
@@ -188,17 +189,15 @@ export function construirCidade(r, b, semente, tex) {
   }
   vagas.sort((x, y) => x.ord - y.ord);
   const totalCasas = Math.min(nCasas(r), vagas.length);
-  const casaGeo = new THREE.BoxGeometry(1, 1, 1);
-  casaGeo.translate(0, 0.5, 0);
-  const tetoGeo = new THREE.ConeGeometry(0.78, 0.7, 4);
-  tetoGeo.rotateY(Math.PI / 4);
-  tetoGeo.translate(0, 0.35, 0);
+  const estilo = estiloCasas(r.bioma, b);
+  const casaGeo = estilo.casa,
+    tetoGeo = estilo.teto;
   const janelaGeo = new THREE.PlaneGeometry(1, 1);
-  const paredes = new THREE.InstancedMesh(casaGeo, mat('#ffffff'), totalCasas);
-  const telhados = new THREE.InstancedMesh(tetoGeo, mat('#ffffff'), totalCasas);
+  const paredes = new THREE.InstancedMesh(casaGeo, mat('#ffffff', estilo.paredeMat || {}), totalCasas);
+  const telhados = new THREE.InstancedMesh(tetoGeo, mat('#ffffff', estilo.tetoMat || {}), totalCasas);
   const vidros = new THREE.InstancedMesh(janelaGeo, luzJanela, totalCasas * 2);
-  const coresParede = [b.muro, '#f1e4cf', '#e8d8c8', '#f6efe6'].map((c) => new THREE.Color(c));
-  const coresTeto = [b.teto, '#b0563f', '#6a5a8f', '#4f6f5a'].map((c) => new THREE.Color(c));
+  const coresParede = estilo.paredes.map((c) => new THREE.Color(c));
+  const coresTeto = estilo.tetos.map((c) => new THREE.Color(c));
   const o = new THREE.Object3D();
   for (let i = 0; i < totalCasas; i++) {
     const v = vagas[i];
@@ -212,14 +211,14 @@ export function construirCidade(r, b, semente, tex) {
     paredes.setMatrixAt(i, o.matrix);
     paredes.setColorAt(i, coresParede[Math.floor(R() * coresParede.length)]);
     o.position.y = TOPO + h;
-    o.scale.set(w, w * 0.9, d);
+    o.scale.set(w, w * estilo.alturaTeto, d);
     o.updateMatrix();
     telhados.setMatrixAt(i, o.matrix);
     telhados.setColorAt(i, coresTeto[Math.floor(R() * coresTeto.length)]);
     for (let k = 0; k < 2; k++) {
       const lado = k ? 1 : -1;
       o.position.set(...pos(v.ang, v.raio - d / 2 - 0.0005));
-      o.position.y = TOPO + h * 0.55;
+      o.position.y = TOPO + h * (estilo.janelaY || 0.55);
       o.position.x += Math.cos(v.ang + Math.PI / 2) * lado * w * 0.22;
       o.position.z += Math.sin(v.ang + Math.PI / 2) * lado * w * 0.22;
       o.rotation.set(0, -v.ang - Math.PI / 2, 0);
@@ -327,7 +326,7 @@ export function construirCidade(r, b, semente, tex) {
 
   // --- guild buildings: one for each kind of tool the session used ---
   const fumacas = [];
-  for (const sitio of sitios.slice(1)) {
+  for (const sitio of sitios.filter((x) => x.tipo !== 'praca' && x.tipo !== 'marco')) {
     const g = new THREE.Group();
     const [x, , z] = pos(sitio.ang, sitio.raio);
     g.position.set(x, TOPO, z);
@@ -532,6 +531,29 @@ export function construirCidade(r, b, semente, tex) {
     });
   }
 
+  // --- the landmark that makes this kind of kingdom unique ---
+  const descricao = DESCRICOES[r.bioma] || DESCRICOES['cascatas-douradas'];
+  const sm = sitios[1];
+  const marco = construirMarco(r.bioma, { b, R, animar: (f) => animar.push(f), angulo: sm.ang });
+  {
+    const [x, , z] = pos(sm.ang, sm.raio);
+    marco.grupo.position.set(x, TOPO, z);
+    virarParaCentro(marco.grupo, sm.ang);
+  }
+  grupo.add(marco.grupo, marco.extras);
+  {
+    const [x, , z] = pos(sm.ang, sm.raio);
+    locais.push({
+      nome: descricao.marco,
+      detalhe: descricao.marcoDesc,
+      pos: new THREE.Vector3(x, TOPO + 0.5, z),
+      tipo: 'marco',
+    });
+  }
+  const clima = construirClima(r.bioma, tex.brilho);
+  grupo.add(clima.pontos);
+  let tAnterior = null;
+
   // --- citizens walking the streets, each carrying a little lantern ---
   const N = 28;
   const corpoGeo = new THREE.CylinderGeometry(0.006, 0.009, 0.022, 6);
@@ -557,8 +579,11 @@ export function construirCidade(r, b, semente, tex) {
     grupo,
     locais,
     oficios,
+    descricao,
     update(t, estado) {
       const e = estado.luz;
+      clima.update(t, tAnterior === null ? 0 : Math.min(0.1, t - tAnterior));
+      tAnterior = t;
       for (const j of janelas) j.emissiveIntensity = 0.15 + e * 1.4;
       for (const f of animar) f(t, e);
       // citizens

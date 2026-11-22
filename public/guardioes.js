@@ -5,7 +5,7 @@ export const GUARDIOES = {
   dragão: { corpo: '#d9d2ff', ventre: '#f4efff', brilho: '#a995ff', acento: '#7b63ff', forma: 'dragao', vel: 0.5 },
   pégaso: { corpo: '#ffffff', ventre: '#f6f0ff', brilho: '#ffe3a1', acento: '#ffd36b', forma: 'pegaso', vel: 0.55 },
   'baleia celeste': {
-    corpo: '#5f8fe8',
+    corpo: '#86a9ea',
     ventre: '#dcecff',
     brilho: '#9fe1ff',
     acento: '#7ff0ff',
@@ -360,7 +360,7 @@ function pegaso(G) {
 }
 
 function baleia(G) {
-  const pele = mat(G.corpo, { roughness: 0.45, metalness: 0.1 });
+  const pele = mat(G.corpo, { roughness: 0.55, metalness: 0.05, emissive: G.brilho, emissiveIntensity: 0.12 });
   const ventre = mat(G.ventre, { roughness: 0.6 });
   const pintas = brilhante(G.acento, 2.2);
   const m = new THREE.Group(),
@@ -433,12 +433,13 @@ function baleia(G) {
       for (const n of anim.nadadeiras) n.g.rotation.z = n.l * Math.sin(t * 1.1) * 0.25;
       luzes.forEach((p, i) => p.scale.setScalar(0.7 + 0.5 * Math.sin(t * 2 + i)));
       m.rotation.z = Math.sin(t * 0.5) * 0.06;
+      m.scale.setScalar(0.8);
     },
   };
 }
 
 function raposa(G) {
-  const pelo = mat(G.corpo, { roughness: 0.7, flatShading: true });
+  const pelo = mat(G.corpo, { roughness: 0.7, flatShading: true, emissive: G.brilho, emissiveIntensity: 0.18 });
   const marca = brilhante(G.acento, 1.6);
   const interno = brilhante('#ffb3d9', 0.8);
   const m = new THREE.Group(),
@@ -458,8 +459,8 @@ function raposa(G) {
     orelha.position.set(l * 0.04, 0.06, -0.01);
     orelha.rotation.z = -l * 0.25;
     cabeca.add(orelha);
-    orelha.add(cone(pelo, 0.032, 0.1, [0, 0.04, 0], null, 4));
-    orelha.add(cone(interno, 0.018, 0.07, [0, 0.035, 0.012], null, 4));
+    orelha.add(cone(pelo, 0.038, 0.13, [0, 0.055, 0], null, 4));
+    orelha.add(cone(interno, 0.022, 0.09, [0, 0.05, 0.014], null, 4));
     cabeca.add(
       malha(new THREE.BoxGeometry(0.03, 0.004, 0.004), marca, [l * 0.05, -0.005, 0.07], null, [0, 0, l * 0.4]),
     ); // whisker marks
@@ -481,9 +482,9 @@ function raposa(G) {
   // nine fluffy tails (as many appear as the kingdom has towers)
   for (let i = 0; i < 9; i++) {
     const c = cadeia(6, 0.06, 0.035, 0.05, pelo, -1, 1.2);
-    const a = ((i - 4) / 4) * 0.9;
+    const a = ((i - 4) / 4) * 1.25;
     c.raiz.position.set(0, 0.04, -0.17);
-    c.raiz.rotation.set(-0.5 - Math.abs(a) * 0.15, a, 0);
+    c.raiz.rotation.set(-0.35 - (4 - Math.abs(i - 4)) * 0.14, a, 0);
     c.ponta.add(esfera(marca, 0.04, [0, 0, -0.06], [1, 1, 1.3], 10));
     m.add(c.raiz);
     anim.caudas.push(c);

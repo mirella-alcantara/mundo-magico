@@ -2,6 +2,14 @@
 
 Painel ao vivo que transforma cada sessão do [Claude Code](https://claude.com/claude-code) em um **reino mágico flutuante**. Um hook registra o que cada sessão faz como uma nota num vault do [Obsidian](https://obsidian.md), e um pequeno servidor Node transmite essas notas em tempo real para uma cena 3D no navegador.
 
+![Painel 3D: reinos flutuantes ligados por pontes de luz, no modo demonstração](docs/img/painel-3d.png)
+
+<p align="center">
+  <img src="docs/img/painel-2d.jpg" alt="Versão 2D do painel, com os reinos sobre um mar de nuvens à noite" width="720">
+  <br>
+  <em>Versão 2D leve (<code>/2d.html</code>). As capturas usam o modo demonstração, com reinos fictícios.</em>
+</p>
+
 ## Funcionalidades
 
 - **Um reino por sessão**: nome, bioma e guardião (dragão, pégaso, fênix…) gerados de forma determinística a partir da sessão e do projeto.
@@ -37,6 +45,7 @@ Painel ao vivo que transforma cada sessão do [Claude Code](https://claude.com/c
 │   ├── cidade.js       # cidade construída a partir da atividade da sessão
 │   ├── guardioes.js    # modelos das criaturas guardiãs
 │   └── 2d.html         # versão 2D
+├── docs/img/           # capturas de tela do README
 ├── vault/              # vault do Obsidian (as notas em vault/Reinos/ não são versionadas)
 └── vault.example/      # vault de exemplo com reinos fictícios
 ```

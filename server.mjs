@@ -69,32 +69,55 @@ function transmitir(forcar = false) {
 
 fs.mkdirSync(PASTA_REINOS, { recursive: true });
 let espera;
-fs.watch(PASTA_REINOS, () => { clearTimeout(espera); espera = setTimeout(transmitir, 120); });
+fs.watch(PASTA_REINOS, () => {
+  clearTimeout(espera);
+  espera = setTimeout(transmitir, 120);
+});
 setInterval(transmitir, 20e3);
 
-const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
+const TIPOS = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.svg': 'image/svg+xml',
+};
 
-http.createServer((req, res) => {
-  const url = new URL(req.url, 'http://x');
-  if (url.pathname === '/api/reinos') {
-    res.writeHead(200, { 'content-type': 'application/json' });
-    return res.end(JSON.stringify(estado()));
-  }
-  if (url.pathname === '/eventos') {
-    res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
-    res.write(`data: ${JSON.stringify(estado())}\n\n`);
-    clientes.add(res);
-    const batida = setInterval(() => res.write(': ping\n\n'), 25e3);
-    req.on('close', () => { clientes.delete(res); clearInterval(batida); });
-    return;
-  }
-  const alvo = path.join(PUBLICO, url.pathname === '/' ? 'index.html' : path.normalize(url.pathname));
-  if (!alvo.startsWith(PUBLICO)) { res.writeHead(403); return res.end(); }
-  fs.readFile(alvo, (err, buf) => {
-    if (err) { res.writeHead(404); return res.end('não encontrado'); }
-    res.writeHead(200, { 'content-type': TIPOS[path.extname(alvo)] || 'application/octet-stream' });
-    res.end(buf);
+http
+  .createServer((req, res) => {
+    const url = new URL(req.url, 'http://x');
+    if (url.pathname === '/api/reinos') {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      return res.end(JSON.stringify(estado()));
+    }
+    if (url.pathname === '/eventos') {
+      res.writeHead(200, {
+        'content-type': 'text/event-stream',
+        'cache-control': 'no-cache',
+        connection: 'keep-alive',
+      });
+      res.write(`data: ${JSON.stringify(estado())}\n\n`);
+      clientes.add(res);
+      const batida = setInterval(() => res.write(': ping\n\n'), 25e3);
+      req.on('close', () => {
+        clientes.delete(res);
+        clearInterval(batida);
+      });
+      return;
+    }
+    const alvo = path.join(PUBLICO, url.pathname === '/' ? 'index.html' : path.normalize(url.pathname));
+    if (!alvo.startsWith(PUBLICO)) {
+      res.writeHead(403);
+      return res.end();
+    }
+    fs.readFile(alvo, (err, buf) => {
+      if (err) {
+        res.writeHead(404);
+        return res.end('não encontrado');
+      }
+      res.writeHead(200, { 'content-type': TIPOS[path.extname(alvo)] || 'application/octet-stream' });
+      res.end(buf);
+    });
+  })
+  .listen(PORTA, '127.0.0.1', () => {
+    console.log(`Reinos em http://localhost:${PORTA}  ·  cofre: ${COFRE}`);
   });
-}).listen(PORTA, '127.0.0.1', () => {
-  console.log(`Reinos em http://localhost:${PORTA}  ·  cofre: ${COFRE}`);
-});

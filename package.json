@@ -1,6 +1,23 @@
 {
   "name": "reinos",
+  "version": "0.1.0",
+  "description": "Painel que transforma cada sessão do Claude Code em um reino mágico, lido de um vault do Obsidian e transmitido ao vivo para o navegador.",
   "private": true,
   "type": "module",
-  "scripts": { "start": "node server.mjs" }
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.9"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.15.0",
+    "globals": "^17.14.0",
+    "prettier": "^3.10.1"
+  }
 }

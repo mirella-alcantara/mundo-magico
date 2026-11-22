@@ -1,0 +1,4 @@
+node_modules/
+vault/
+vault.example/
+package-lock.json

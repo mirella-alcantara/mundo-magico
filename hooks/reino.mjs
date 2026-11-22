@@ -4,7 +4,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-  PASTA_REINOS, nomeDoReino, biomaDe, guardiaoDe, EPITETOS, COM_ARTIGO, lerNota, escreverNota, nomeDoLink,
+  PASTA_REINOS,
+  nomeDoReino,
+  biomaDe,
+  guardiaoDe,
+  EPITETOS,
+  COM_ARTIGO,
+  lerNota,
+  escreverNota,
+  nomeDoLink,
 } from '../lib/reinos.mjs';
 
 const agora = () => new Date().toISOString();
@@ -17,15 +25,23 @@ function lerEntrada() {
     const fim = setTimeout(() => ok(txt), 1500);
     process.stdin.setEncoding('utf8');
     process.stdin.on('data', (d) => (txt += d));
-    process.stdin.on('end', () => { clearTimeout(fim); ok(txt); });
+    process.stdin.on('end', () => {
+      clearTimeout(fim);
+      ok(txt);
+    });
   });
 }
 
 function trancar(alvo) {
   const lock = alvo + '.lock';
   for (let i = 0; i < 40; i++) {
-    try { fs.mkdirSync(lock); return () => fs.rmSync(lock, { recursive: true, force: true }); } catch {
-      try { if (Date.now() - fs.statSync(lock).mtimeMs > 4000) fs.rmSync(lock, { recursive: true, force: true }); } catch {}
+    try {
+      fs.mkdirSync(lock);
+      return () => fs.rmSync(lock, { recursive: true, force: true });
+    } catch {
+      try {
+        if (Date.now() - fs.statSync(lock).mtimeMs > 4000) fs.rmSync(lock, { recursive: true, force: true });
+      } catch {}
       Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 25);
     }
   }
@@ -42,12 +58,20 @@ function arquivoDaSessao(sessao) {
   return principal;
 }
 
-const resumir = (s, n) => String(s || '').replace(/\s+/g, ' ').trim().slice(0, n);
+const resumir = (s, n) =>
+  String(s || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, n);
 
 function vizinhos(eu, nomeProprio) {
   const achados = new Set();
   let arquivos = [];
-  try { arquivos = fs.readdirSync(PASTA_REINOS).filter((f) => f.endsWith('.md')); } catch { return achados; }
+  try {
+    arquivos = fs.readdirSync(PASTA_REINOS).filter((f) => f.endsWith('.md'));
+  } catch {
+    return achados;
+  }
   const meus = new Set(eu.tocou || []);
   for (const f of arquivos) {
     const nome = f.slice(0, -3);
@@ -77,8 +101,11 @@ async function main() {
   const nomeNota = path.basename(arquivo, '.md');
   const soltar = trancar(arquivo);
   try {
-    let dados = {}, corpo = '';
-    try { ({ dados, corpo } = lerNota(fs.readFileSync(arquivo, 'utf8'))); } catch {}
+    let dados = {},
+      corpo = '';
+    try {
+      ({ dados, corpo } = lerNota(fs.readFileSync(arquivo, 'utf8')));
+    } catch {}
 
     const projeto = path.basename(e.cwd || dados.pasta || '') || 'sem projeto';
     const bioma = dados.bioma || biomaDe(projeto);
@@ -126,10 +153,18 @@ async function main() {
         d.ferramenta = e.tool_name || '';
         d.acoes += 1;
         {
-          const nomeOficio = /^mcp__/.test(e.tool_name || '') ? 'MCP' : (e.tool_name || 'Outra');
-          const mapa = new Map(d.oficios.map((o) => { const [k, n] = String(o).split(':'); return [k, Number(n) || 0]; }));
+          const nomeOficio = /^mcp__/.test(e.tool_name || '') ? 'MCP' : e.tool_name || 'Outra';
+          const mapa = new Map(
+            d.oficios.map((o) => {
+              const [k, n] = String(o).split(':');
+              return [k, Number(n) || 0];
+            }),
+          );
           mapa.set(nomeOficio, (mapa.get(nomeOficio) || 0) + 1);
-          d.oficios = [...mapa].sort((x, y) => y[1] - x[1]).slice(0, 14).map(([k, n]) => `${k}:${n}`);
+          d.oficios = [...mapa]
+            .sort((x, y) => y[1] - x[1])
+            .slice(0, 14)
+            .map(([k, n]) => `${k}:${n}`);
         }
         const ti = e.tool_input || {};
         if (/^(Task|Agent)$/.test(e.tool_name)) {
@@ -206,4 +241,6 @@ async function main() {
   }
 }
 
-main().catch(() => {}).finally(() => process.exit(0));
+main()
+  .catch(() => {})
+  .finally(() => process.exit(0));

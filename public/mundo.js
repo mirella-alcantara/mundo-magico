@@ -961,7 +961,6 @@ cena.add(baleiaFundo.raiz);
 // ---------- state ----------
 const reinos = new Map();
 const pontes = new Map();
-let dados = { reinos: [], pontes: [] };
 let somLigado = false,
   audio = null,
   modoDemo = false,
@@ -996,7 +995,6 @@ function descartar(obj) {
 }
 
 function aplicarDados(novo) {
-  dados = novo;
   const vistos = new Set();
   for (const r of novo.reinos) {
     vistos.add(r.sessao);

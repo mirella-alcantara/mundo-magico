@@ -15,7 +15,7 @@ export default [
   {
     rules: {
       'no-empty': ['error', { allowEmptyCatch: true }],
-      'no-unused-vars': ['error', { argsIgnorePattern: '^_', caughtErrors: 'none' }],
+      'no-unused-vars': ['error', { argsIgnorePattern: '^_', caughtErrors: 'none', ignoreRestSiblings: true }],
     },
   },
 ];

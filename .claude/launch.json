@@ -4,7 +4,7 @@
     {
       "name": "reinos",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["server.mjs"],
+      "runtimeArgs": ["--env-file-if-exists=.env", "server.mjs"],
       "port": 4747
     }
   ]

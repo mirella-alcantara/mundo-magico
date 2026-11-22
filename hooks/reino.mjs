@@ -66,7 +66,7 @@ const resumir = (s, n) =>
 
 function vizinhos(eu, nomeProprio) {
   const achados = new Set();
-  let arquivos = [];
+  let arquivos;
   try {
     arquivos = fs.readdirSync(PASTA_REINOS).filter((f) => f.endsWith('.md'));
   } catch {

@@ -191,7 +191,7 @@ function dragao(G) {
   pescoco.raiz.position.set(0, 0.06, 0.25);
   pescoco.raiz.rotation.x = -0.55;
   m.add(pescoco.raiz);
-  pescoco.segs.forEach((s, i) => {
+  pescoco.segs.forEach((s) => {
     s.rotation.x = 0.12;
     s.add(cone(acento, 0.018, 0.06, [0, 0.07, 0.03], [-0.3, 0, 0], 4));
   });

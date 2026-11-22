@@ -1,5 +1,5 @@
 {
-  "name": "reinos",
+  "name": "mundo-magico",
   "version": "0.1.0",
   "description": "Painel que transforma cada sessão do Claude Code em um reino mágico, lido de um vault do Obsidian e transmitido ao vivo para o navegador.",
   "private": true,

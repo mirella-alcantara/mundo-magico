@@ -1,4 +1,4 @@
-# Reinos
+# Mundo Mágico
 
 Painel ao vivo que transforma cada sessão do [Claude Code](https://claude.com/claude-code) em um **reino mágico flutuante**. Um hook registra o que cada sessão faz como uma nota num vault do [Obsidian](https://obsidian.md), e um pequeno servidor Node transmite essas notas em tempo real para uma cena 3D no navegador.
 

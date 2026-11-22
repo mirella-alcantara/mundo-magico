@@ -5,7 +5,7 @@ Painel ao vivo que transforma cada sessão do [Claude Code](https://claude.com/c
 ![Painel 3D: reinos flutuantes ligados por pontes de luz, no modo demonstração](docs/img/painel-3d.png)
 
 <p align="center">
-  <img src="docs/img/painel-2d.jpg" alt="Versão 2D do painel, com os reinos sobre um mar de nuvens à noite" width="720">
+  <img src="docs/img/painel-2d.png" alt="Versão 2D do painel, com os reinos sobre um mar de nuvens à noite" width="720">
   <br>
   <em>Versão 2D leve (<code>/2d.html</code>). As capturas usam o modo demonstração, com reinos fictícios.</em>
 </p>

@@ -1117,12 +1117,49 @@ function posicionar() {
     v.alvo.set(Math.cos(a) * R2, -2.1 + (i % 2) * 0.5, Math.sin(a) * R2);
     v.ts = 0.55;
   });
+  // Islands the user dragged keep their place (the height still comes from the layout).
+  for (const v of lista) {
+    if (arrastando?.v === v) {
+      v.alvo.x = v.pos.x;
+      v.alvo.z = v.pos.z;
+      continue;
+    }
+    const m = posicoesManuais.get(v.r.sessao);
+    if (m) {
+      v.alvo.x = m.x;
+      v.alvo.z = m.z;
+    }
+  }
   for (const v of lista)
     if (v.novo) {
       v.pos.set(v.alvo.x, v.alvo.y - 3.5, v.alvo.z);
       v.novo = false;
     }
   raioMundo = R;
+  atualizarBotaoReorganizar();
+}
+
+// ---------- islands moved by hand (remembered in this browser) ----------
+const CHAVE_POSICOES = 'reinos-posicoes';
+const posicoesManuais = new Map();
+let arrastando = null; // { v, desvio } while an island is being dragged
+try {
+  for (const [sessao, p] of Object.entries(JSON.parse(localStorage.getItem(CHAVE_POSICOES) || '{}')))
+    if (Number.isFinite(p?.x) && Number.isFinite(p?.z)) posicoesManuais.set(sessao, { x: p.x, z: p.z });
+} catch {}
+function salvarPosicoes() {
+  try {
+    localStorage.setItem(CHAVE_POSICOES, JSON.stringify(Object.fromEntries(posicoesManuais)));
+  } catch {}
+}
+function atualizarBotaoReorganizar() {
+  const bt = document.getElementById('reorganizar');
+  if (bt) bt.style.display = posicoesManuais.size ? '' : 'none';
+}
+function reorganizar() {
+  posicoesManuais.clear();
+  salvarPosicoes();
+  posicionar();
 }
 
 // ---------- sky update ----------
@@ -1375,6 +1412,11 @@ function acharReino(x, y) {
   return hit ? [...reinos.values()].find((v) => v.k.alvo === hit.object) : null;
 }
 function mostrarCartao(v, mx, my) {
+  if (arrastando) {
+    cartao.classList.remove('visivel');
+    renderer.domElement.style.cursor = 'grabbing';
+    return;
+  }
   if (!v || v === focado) {
     cartao.classList.remove('visivel');
     renderer.domElement.style.cursor = '';
@@ -1422,10 +1464,55 @@ function mostrarCartao(v, mx, my) {
 }
 let arrastou = false,
   inicioToque = null;
+// Dragging an island moves it on a horizontal plane at its own height.
+const planoArraste = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0),
+  pontoArraste = new THREE.Vector3();
+function pontoNoPlano(x, y, altura) {
+  ponteiro.set((x / innerWidth) * 2 - 1, -(y / innerHeight) * 2 + 1);
+  raio.setFromCamera(ponteiro, camera);
+  planoArraste.constant = -altura;
+  return raio.ray.intersectPlane(planoArraste, pontoArraste);
+}
+// Capture phase on the stage: runs before OrbitControls, so grabbing an island does not rotate the camera.
+palco.addEventListener(
+  'pointerdown',
+  (e) => {
+    if (focado || voo || e.button !== 0 || e.target !== renderer.domElement) return;
+    const v = acharReino(e.clientX, e.clientY);
+    if (!v || v.saindo) return;
+    const p = pontoNoPlano(e.clientX, e.clientY, v.pos.y);
+    if (!p) return;
+    arrastando = { v, desvio: new THREE.Vector3(v.pos.x - p.x, 0, v.pos.z - p.z) };
+    controles.enabled = false;
+  },
+  { capture: true },
+);
+function soltarIlha() {
+  if (!arrastando) return;
+  const { v } = arrastando;
+  arrastando = null;
+  if (arrastou) {
+    posicoesManuais.set(v.r.sessao, { x: v.alvo.x, z: v.alvo.z });
+    salvarPosicoes();
+    atualizarBotaoReorganizar();
+  }
+  if (!voo) controles.enabled = true;
+}
 renderer.domElement.addEventListener('pointermove', (e) => {
   mouse = [e.clientX, e.clientY];
   if (inicioToque && Math.hypot(e.clientX - inicioToque[0], e.clientY - inicioToque[1]) > 5) arrastou = true;
+  if (arrastando && arrastou) {
+    const { v, desvio } = arrastando;
+    const p = pontoNoPlano(e.clientX, e.clientY, v.pos.y);
+    if (p) {
+      v.alvo.x = v.pos.x = p.x + desvio.x;
+      v.alvo.z = v.pos.z = p.z + desvio.z;
+    }
+    renderer.domElement.style.cursor = 'grabbing';
+  }
 });
+addEventListener('pointerup', soltarIlha);
+addEventListener('pointercancel', soltarIlha);
 renderer.domElement.addEventListener('pointerleave', () => {
   mouse = null;
 });
@@ -2052,6 +2139,7 @@ document.getElementById('som').addEventListener('click', (e) => {
   if (somLigado) tocarSino();
 });
 document.getElementById('demo').addEventListener('click', () => ligarDemo(!modoDemo));
+document.getElementById('reorganizar').addEventListener('click', reorganizar);
 document.getElementById('demo2').addEventListener('click', () => ligarDemo(true));
 try {
   const salvo = localStorage.getItem('reinos-ceu');
